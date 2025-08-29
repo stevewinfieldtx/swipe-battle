@@ -10,6 +10,7 @@ import SubscriptionModal from './components/SubscriptionModal';
 import StatsScreen from './components/StatsScreen.tsx';
 import AdminScreen from './components/AdminScreen';
 import ModelProfileScreen from './components/ModelProfileScreen';
+import ChatScreen from './components/ChatScreen';
 
 // --- SUB-COMPONENTS FOR CLARITY ---
 
@@ -57,27 +58,52 @@ const WinnersScreen: React.FC<{ winners: BattleImage[]; onRestart: () => void; o
     <div className="flex flex-col w-full h-full p-4 sm:p-8 text-white animate-fade-in">
         <div className="text-center mb-6">
             <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">Your Winners!</h1>
-            <p className="text-gray-400 mt-2">Click on any winner to view their profile.</p>
+            <p className="text-gray-400 mt-2">Click on any winner to view their profile, gallery, and chat with them!</p>
         </div>
         <div className="flex-grow overflow-y-auto mb-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {winners.map((winner, index) => (
-                    <button 
-                        key={`${winner.url}-${index}`} 
-                        onClick={() => onShowModelProfile(winner.name)} 
-                        className="aspect-[3/4] rounded-xl overflow-hidden bg-gray-800 group transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                    >
-                        <img src={winner.url} alt={winner.name} className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-80" />
-                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-                            <p className="font-semibold text-sm truncate">{winner.name}</p>
-                        </div>
-                    </button>
+                    <div key={`${winner.url}-${index}`} className="group">
+                        <button 
+                            onClick={() => onShowModelProfile(winner.name)} 
+                            className="relative aspect-[3/4] w-full rounded-xl overflow-hidden bg-gray-800 transform transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 hover:shadow-xl hover:shadow-yellow-500/20"
+                        >
+                            <img src={winner.url} alt={winner.name} className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-80" />
+                            
+                            {/* Hover overlay with profile icon */}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                <div className="text-center">
+                                    <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-yellow-400 font-bold text-sm">View Profile</p>
+                                </div>
+                            </div>
+                            
+                            {/* Name overlay */}
+                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent">
+                                <p className="font-bold text-sm truncate text-center text-yellow-400 group-hover:text-yellow-300">{winner.name}</p>
+                                <p className="text-xs text-gray-300 text-center mt-1">Click to explore →</p>
+                            </div>
+                        </button>
+                    </div>
                 ))}
             </div>
         </div>
-        <button onClick={onRestart} className="w-full max-w-sm mx-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl text-lg transition-transform duration-200 transform hover:scale-105">
-            Play Again
-        </button>
+        
+        <div className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto w-full">
+            <button onClick={onRestart} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl text-lg transition-transform duration-200 transform hover:scale-105">
+                🎮 Play Again
+            </button>
+            <button 
+                onClick={() => window.location.reload()} 
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl text-lg transition-transform duration-200 transform hover:scale-105"
+            >
+                🏠 Main Menu
+            </button>
+        </div>
     </div>
 );
 
@@ -179,7 +205,9 @@ const App: React.FC = () => {
       case 'admin':
         return <AdminScreen onBack={() => setGameState('start')} />;
       case 'modelProfile':
-        return <ModelProfileScreen modelName={selectedModel!} onBack={() => setGameState('stats')} />;
+        return <ModelProfileScreen modelName={selectedModel!} onBack={() => setGameState('stats')} onStartChat={() => setGameState('chat')} />;
+      case 'chat':
+        return <ChatScreen modelName={selectedModel!} onBack={() => setGameState('modelProfile')} />;
       case 'start':
       default:
         return (

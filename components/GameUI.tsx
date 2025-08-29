@@ -8,8 +8,9 @@ import type { FileObject } from '@supabase/storage-js';
 interface GameUIProps {
   round: number;
   score: number;
-  onChoiceMade: (winner: BattleImage, loser: BattleImage) => void;
+  onChoiceMade: (winner: BattleImage) => void;
   bucketName: string;
+  userId: string;
 }
 
 interface WinnerInfo {
@@ -58,7 +59,7 @@ const StatsDisplay: React.FC<{ stats: BattleStats | null, isLoading: boolean, lo
 };
 
 
-const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName }) => {
+const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName, userId }) => {
   const [images, setImages] = useState<[BattleImage, BattleImage] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,15 +179,24 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName 
     const chosenLoser = images[loserIndex];
 
     // Record battle result (fire and forget)
-    if (IS_CONFIGURED) {
-      supabase.from('battles').insert({ winner_name: chosenWinner.name, loser_name: chosenLoser.name })
+    if (IS_CONFIGURED && userId) {
+      supabase.from('battles').insert({ 
+        winner_name: chosenWinner.name, 
+        loser_name: chosenLoser.name,
+        user_id: userId,
+        bucket_name: bucketName,
+        created_at: new Date().toISOString()
+      })
         .then(({ error }) => {
           if (error) console.error("Failed to record battle:", error.message);
+          else console.log("Battle recorded:", chosenWinner.name, "vs", chosenLoser.name);
         });
     }
 
+    // Call the parent callback to update game state
     setTimeout(() => {
         setWinnerInfo({ winner: chosenWinner, loser: chosenLoser });
+        onChoiceMade(chosenWinner);
     }, 400);
 
   }, [images]);

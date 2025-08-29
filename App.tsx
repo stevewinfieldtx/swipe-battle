@@ -152,7 +152,13 @@ const App: React.FC = () => {
         return;
     }
     try {
+        console.log('Starting subscription process for user:', user.id);
+        console.log('Invoking Edge Function...');
+        
         const { data, error } = await supabase.functions.invoke('create-checkout-session');
+        
+        console.log('Edge Function response:', { data, error });
+        
         if (error) throw new Error(`Could not initiate subscription. Please try again. Details: ${error.message}`);
         
         const stripe = await getStripe();
@@ -161,6 +167,7 @@ const App: React.FC = () => {
         await stripe.redirectToCheckout({ sessionId: data.sessionId });
 
     } catch (error: any) {
+        console.error('Subscription error:', error);
         alert(error.message);
     } finally {
         setShowSubscriptionModal(false);

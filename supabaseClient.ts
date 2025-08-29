@@ -17,7 +17,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIU
 // 1. Find your PUBLISHABLE key in your Stripe dashboard: Developers > API keys
 const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51RdgxfK9saWlF7A0tlfgjBAUjQl46ViLMW61Na9F7yjKd2oZaVcRwcNHx61yY48ibpfscz7W7GJHs3Pr5soIaREa00nvifuqx8';
 // 2. Create a Product in your Stripe dashboard, add a recurring Price, and copy its ID.
-export const STRIPE_PRICE_ID = import.meta.env.VITE_STRIPE_PRICE_ID || 'prod_SbVXKcRghtsVwA'; 
+export const STRIPE_PRICE_ID = import.meta.env.VITE_STRIPE_PRICE_ID || 'price_1RgIWqK9saWlF7A0QFPDZwOC'; 
 // 3. The following keys are used in Supabase Edge Functions. You will need to set them as environment variables in your Supabase project settings.
 //    - STRIPE_SECRET_KEY: Your Stripe SECRET key.
 //    - STRIPE_WEBHOOK_SECRET: The signing secret for your Stripe webhook endpoint.

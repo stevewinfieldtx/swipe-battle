@@ -6,7 +6,7 @@ import { TOTAL_ROUNDS } from './constants';
 import { supabase, BUCKET_NAME, NSFW_BUCKET_NAME, IS_CONFIGURED, getStripe } from './supabaseClient';
 import AuthScreen from './components/AuthScreen';
 import SubscriptionModal from './components/SubscriptionModal';
-import StatsScreen from './components/StatsScreen';
+import StatsScreen from './components/StatsScreen.tsx';
 import AdminScreen from './components/AdminScreen';
 import ModelProfileScreen from './components/ModelProfileScreen';
 

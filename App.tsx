@@ -23,12 +23,7 @@ const ConfigurationErrorScreen: React.FC = () => (
             <p className="text-sm text-gray-400">Please create a <code className="bg-gray-700 p-1 rounded">.env.local</code> file and add your Supabase URL and public anon key.</p>
           </div>
         )}
-        {!IS_STRIPE_CONFIGURED && (
-          <div>
-            <p className="text-gray-300 mb-2">Stripe is not configured.</p>
-            <p className="text-sm text-gray-400">Please add your Stripe Publishable Key and Price ID to your <code className="bg-gray-700 p-1 rounded">.env.local</code> file.</p>
-          </div>
-        )}
+
       </div>
     </div>
 );
@@ -166,7 +161,7 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
-    if (!IS_CONFIGURED || !IS_STRIPE_CONFIGURED) {
+    if (!IS_CONFIGURED) {
       return <ConfigurationErrorScreen />;
     }
 

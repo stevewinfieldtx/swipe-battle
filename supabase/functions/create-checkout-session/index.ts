@@ -24,7 +24,7 @@ if (!stripeSecretKey) {
   throw new Error('STRIPE_SECRET_KEY is not set');
 }
 
-const stripe = Stripe(stripeSecretKey, {
+const stripe = new Stripe(stripeSecretKey, {
   httpClient: Stripe.createFetchHttpClient(),
   apiVersion: '2022-11-15',
 });

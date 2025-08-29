@@ -26,7 +26,7 @@ if (!webhookSecret) {
   throw new Error('STRIPE_WEBHOOK_SECRET is not set');
 }
 
-const stripe = Stripe(stripeSecretKey, {
+const stripe = new Stripe(stripeSecretKey, {
   httpClient: Stripe.createFetchHttpClient(),
   apiVersion: '2022-11-15',
 });

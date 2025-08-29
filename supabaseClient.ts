@@ -10,14 +10,14 @@ import type { Stripe } from '@stripe/stripe-js';
 // 2. Click the 'Settings' icon (the gear).
 // 3. Click 'API' in the menu.
 // 4. Under 'Project API keys', find the key labeled 'public' or 'anon' and copy it.
-const supabaseUrl = 'https://qmclolibbzaeewssqycy.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qmclolibbzaeewssqycy.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4';
 
 // === STRIPE CONFIGURATION - FILL THESE IN ===
 // 1. Find your PUBLISHABLE key in your Stripe dashboard: Developers > API keys
-const STRIPE_PUBLISHABLE_KEY = 'pk_test_51RdgxfK9saWlF7A0tlfgjBAUjQl46ViLMW61Na9F7yjKd2oZaVcRwcNHx61yY48ibpfscz7W7GJHs3Pr5soIaREa00nvifuqx8';
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51RdgxfK9saWlF7A0tlfgjBAUjQl46ViLMW61Na9F7yjKd2oZaVcRwcNHx61yY48ibpfscz7W7GJHs3Pr5soIaREa00nvifuqx8';
 // 2. Create a Product in your Stripe dashboard, add a recurring Price, and copy its ID.
-export const STRIPE_PRICE_ID = 'prod_SbVXKcRghtsVwA'; 
+export const STRIPE_PRICE_ID = import.meta.env.VITE_STRIPE_PRICE_ID || 'prod_SbVXKcRghtsVwA'; 
 // 3. The following keys are used in Supabase Edge Functions. You will need to set them as environment variables in your Supabase project settings.
 //    - STRIPE_SECRET_KEY: Your Stripe SECRET key.
 //    - STRIPE_WEBHOOK_SECRET: The signing secret for your Stripe webhook endpoint.

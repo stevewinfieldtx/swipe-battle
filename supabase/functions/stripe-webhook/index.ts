@@ -11,12 +11,25 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import Stripe from 'https://esm.sh/stripe@12.12.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const stripe = Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
+// Get environment variables
+const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+
+// Validate required environment variables
+if (!stripeSecretKey) {
+  console.error('STRIPE_SECRET_KEY is not set. Please set it using: supabase secrets set STRIPE_SECRET_KEY=your_stripe_secret_key');
+  throw new Error('STRIPE_SECRET_KEY is not set');
+}
+
+if (!webhookSecret) {
+  console.error('STRIPE_WEBHOOK_SECRET is not set. Please set it using: supabase secrets set STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret');
+  throw new Error('STRIPE_WEBHOOK_SECRET is not set');
+}
+
+const stripe = Stripe(stripeSecretKey, {
   httpClient: Stripe.createFetchHttpClient(),
   apiVersion: '2022-11-15',
 });
-
-const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
 
 serve(async (req) => {
   const signature = req.headers.get('Stripe-Signature');
@@ -27,11 +40,11 @@ serve(async (req) => {
     event = await stripe.webhooks.constructEventAsync(
       body,
       signature!,
-      webhookSecret,
+      webhookSecret!,
       undefined,
       Stripe.createSubtleCryptoProvider()
     );
-  } catch (err) {
+  } catch (err: any) {
     console.error(`Webhook signature verification failed: ${err.message}`);
     return new Response(err.message, { status: 400 });
   }
@@ -70,7 +83,7 @@ serve(async (req) => {
       }
 
       console.log(`Successfully granted premium access to user: ${clientReferenceId}`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating user metadata:', err);
       return new Response(`Webhook handler error: ${err.message}`, { status: 500 });
     }

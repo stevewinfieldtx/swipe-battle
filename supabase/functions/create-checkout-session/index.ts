@@ -13,14 +13,21 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import Stripe from 'https://esm.sh/stripe@12.12.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const stripe = Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
+// Get environment variables
+const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+const stripePriceId = Deno.env.get('STRIPE_PRICE_ID') || 'price_1RgIWqK9saWlF7A0QFPDZwOC'; // Use default if not set
+const siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:3000'; // Use default if not set
+
+// Validate required environment variables
+if (!stripeSecretKey) {
+  console.error('STRIPE_SECRET_KEY is not set. Please set it using: supabase secrets set STRIPE_SECRET_KEY=your_stripe_secret_key');
+  throw new Error('STRIPE_SECRET_KEY is not set');
+}
+
+const stripe = Stripe(stripeSecretKey, {
   httpClient: Stripe.createFetchHttpClient(),
   apiVersion: '2022-11-15',
 });
-
-// This is the Price ID of the product you want to sell. 
-// You can find it in your Stripe dashboard.
-const STRIPE_PRICE_ID = Deno.env.get('STRIPE_PRICE_ID')!;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -49,13 +56,13 @@ serve(async (req) => {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: STRIPE_PRICE_ID,
+          price: stripePriceId,
           quantity: 1,
         },
       ],
       mode: 'subscription',
-      success_url: `${Deno.env.get('SITE_URL')}`, // Your app's URL
-      cancel_url: `${Deno.env.get('SITE_URL')}`,
+      success_url: `${siteUrl}`, // Your app's URL
+      cancel_url: `${siteUrl}`,
       // Pass the user's Supabase ID to the webhook
       client_reference_id: user.id, 
     });
@@ -67,8 +74,8 @@ serve(async (req) => {
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
        },
     });
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    console.error('Error creating checkout session:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

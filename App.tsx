@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, IS_CONFIGURED, IS_STRIPE_CONFIGURED, BUCKET_NAME, NSFW_BUCKET_NAME, getStripe, STRIPE_PRICE_ID } from './supabaseClient';
+import { PayPalScriptProvider } from '@paypal/react-paypal-js';
+import { supabase, IS_CONFIGURED, BUCKET_NAME, NSFW_BUCKET_NAME } from './supabaseClient';
 import type { Session, User } from '@supabase/supabase-js';
 import { GameState, BattleImage } from './types';
 import { TOTAL_ROUNDS } from './constants';
@@ -146,32 +147,17 @@ const App: React.FC = () => {
     await supabase.auth.signOut();
   }
   
-  const handleSubscribe = async () => {
-    if (!user) {
-        alert("You must be logged in to subscribe.");
-        return;
-    }
-    try {
-        console.log('Starting subscription process for user:', user.id);
-        console.log('Invoking Edge Function...');
-        
-        const { data, error } = await supabase.functions.invoke('create-checkout-session');
-        
-        console.log('Edge Function response:', { data, error });
-        
-        if (error) throw new Error(`Could not initiate subscription. Please try again. Details: ${error.message}`);
-        
-        const stripe = await getStripe();
-        if (!stripe) throw new Error("Stripe.js has not loaded yet.");
-
-        await stripe.redirectToCheckout({ sessionId: data.sessionId });
-
-    } catch (error: any) {
-        console.error('Subscription error:', error);
-        alert(error.message);
-    } finally {
-        setShowSubscriptionModal(false);
-    }
+  const handleSubscribe = () => {
+    // PayPal subscription logic is now handled in the PayPalSubscription component
+    // This function is called after successful PayPal subscription
+    console.log('Subscription successful, refreshing user data...');
+    
+    // Refresh the user session to get updated metadata
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsPremium(session?.user?.user_metadata?.is_premium ?? false);
+    });
   }
 
   const handleShowModelProfile = (modelName: string) => {
@@ -214,16 +200,24 @@ const App: React.FC = () => {
     }
   };
 
+  const paypalOptions = {
+    clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "AWU3ejBcjTFRbS_pSMaEU9PRR2OGIMy8GrSqJRT9KL5T9eWJRLFDzL5tcqKh6mgeD-dnKADr_WbhQVS-",
+    vault: true,
+    intent: "subscription"
+  };
+
   return (
-    <main className="w-full h-full fixed inset-0 bg-gray-900 overflow-hidden">
-      {renderContent()}
-      {showSubscriptionModal && (
-        <SubscriptionModal 
-            onClose={() => setShowSubscriptionModal(false)}
-            onSubscribe={handleSubscribe}
-        />
-      )}
-    </main>
+    <PayPalScriptProvider options={paypalOptions}>
+      <main className="w-full h-full fixed inset-0 bg-gray-900 overflow-hidden">
+        {renderContent()}
+        {showSubscriptionModal && (
+          <SubscriptionModal 
+              onClose={() => setShowSubscriptionModal(false)}
+              onSubscribe={handleSubscribe}
+          />
+        )}
+      </main>
+    </PayPalScriptProvider>
   );
 };
 

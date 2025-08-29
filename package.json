@@ -9,11 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.1.1",
-    "react": "^19.1.1",
-    "@supabase/supabase-js": "2",
+    "@paypal/react-paypal-js": "^8.8.3",
+    "@stripe/stripe-js": "3",
     "@supabase/storage-js": "^2.11.0",
-    "@stripe/stripe-js": "3"
+    "@supabase/supabase-js": "2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

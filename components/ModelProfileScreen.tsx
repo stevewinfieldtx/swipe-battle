@@ -23,6 +23,8 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [selectedGalleryType, setSelectedGalleryType] = useState<'sfw' | 'nsfw'>('sfw');
   const [activeTab, setActiveTab] = useState<'gallery' | 'story' | 'requests' | 'nsfw'>('story');
+  const [generatedImage, setGeneratedImage] = useState<{url: string, prompt: string, photoType: string} | null>(null);
+  const [showGeneratedImage, setShowGeneratedImage] = useState(false);
 
   useEffect(() => {
     loadModelProfile();
@@ -134,17 +136,19 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
       const result = await response.json();
 
       if (result.success) {
-        alert(`🎉 Your ${PRICING.PHOTOS[selectedPhotoType].label} image has been generated successfully! Check your email for the final result.`);
+        // Store the generated image data
+        setGeneratedImage({
+          url: result.imageUrl,
+          prompt: requestText,
+          photoType: selectedPhotoType
+        });
+        setShowGeneratedImage(true);
+        setShowCustomRequestForm(false);
+        setRequestText('');
+        setUserEmail('');
       } else {
         throw new Error(result.error || 'Image generation failed');
       }
-
-      setShowCustomRequestForm(false);
-      setRequestText('');
-      setUserEmail('');
-      
-      // Refresh user's token balance
-      window.location.reload();
       
     } catch (error) {
       console.error('Custom photo request error:', error);
@@ -161,6 +165,26 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
 
   const closeImageModal = () => {
     setSelectedImageIndex(null);
+  };
+
+  const downloadGeneratedImage = async () => {
+    if (!generatedImage) return;
+    
+    try {
+      const response = await fetch(generatedImage.url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${modelName}_${generatedImage.photoType}_${Date.now()}.webp`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Download failed. Please try right-clicking the image and selecting "Save image as..."');
+    }
   };
 
   const navigateImage = (direction: 'prev' | 'next') => {
@@ -510,6 +534,69 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center">
             <p>{selectedImageIndex + 1} of {selectedGalleryType === 'sfw' ? modelProfile.sfwImages.length : modelProfile.nsfwImages.length}</p>
             <p className="text-sm text-gray-400 mt-1">{selectedGalleryType.toUpperCase()} Gallery</p>
+          </div>
+        </div>
+      )}
+
+      {/* Generated Image Modal */}
+      {showGeneratedImage && generatedImage && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+          <div className="relative max-w-4xl max-h-full bg-gray-900 rounded-lg overflow-hidden">
+            <div className="absolute top-4 right-4 z-10 flex space-x-2">
+              <button
+                onClick={downloadGeneratedImage}
+                className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-full transition-colors"
+                title="Download Image"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowGeneratedImage(false)}
+                className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-full transition-colors"
+                title="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <img 
+              src={generatedImage.url}
+              alt={`Generated ${generatedImage.photoType} image for ${modelName}`}
+              className="max-w-full max-h-full object-contain"
+            />
+            
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+              <div className="text-white">
+                <h3 className="text-xl font-bold mb-2">🎉 Your Custom Image is Ready!</h3>
+                <p className="text-gray-300 mb-1">
+                  <strong>Type:</strong> {PRICING.PHOTOS[generatedImage.photoType as keyof typeof PRICING.PHOTOS].label}
+                </p>
+                <p className="text-gray-300 mb-3">
+                  <strong>Prompt:</strong> "{generatedImage.prompt}"
+                </p>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={downloadGeneratedImage}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Download WebP</span>
+                  </button>
+                  <button
+                    onClick={() => setShowGeneratedImage(false)}
+                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

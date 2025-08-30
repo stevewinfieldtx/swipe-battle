@@ -50,34 +50,30 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
-          modelName
-        }),
-      });
+      // For now, simulate a response until we set up proper API
+      setTimeout(() => {
+        const responses = [
+          `Hey there! I'm ${modelName}. Thanks for chatting with me! 😊`,
+          `That's really interesting! I love getting to know my fans better.`,
+          `You seem really cool! What else would you like to know about me?`,
+          `I'm having such a great time talking with you! Tell me more about yourself.`,
+          `That's so sweet of you to say! I really appreciate the support.`
+        ];
+        
+        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+        
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: randomResponse,
+          timestamp: new Date()
+        };
 
-      if (!response.ok) {
-        throw new Error('Failed to get response from AI');
-      }
-
-      const data = await response.json();
+        setMessages(prev => [...prev, assistantMessage]);
+        setIsLoading(false);
+      }, 1000 + Math.random() * 2000); // 1-3 second delay for realism
       
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.message,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
+      return; // Exit early since we're using setTimeout
     } catch (err: any) {
       setError(err.message || 'Failed to send message');
       console.error('Chat error:', err);

@@ -160,7 +160,7 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
         </div>
 
         {/* Hero Section with Profile Image */}
-        <div className="relative h-64 overflow-hidden">
+        <div className="relative h-48 overflow-hidden">
           <img 
             src={modelProfile.profileImage} 
             alt={modelProfile.name}

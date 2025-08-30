@@ -183,9 +183,7 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName,
       supabase.from('battles').insert({ 
         winner_name: chosenWinner.name, 
         loser_name: chosenLoser.name,
-        user_id: userId,
-        bucket_name: bucketName,
-        created_at: new Date().toISOString()
+        user_id: userId
       })
         .then(({ error }) => {
           if (error) console.error("Failed to record battle:", error.message);
@@ -226,7 +224,9 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName,
   useEffect(() => {
     if (!winnerInfo || !IS_CONFIGURED) return;
 
-    const fetchStats = async () => {
+    // Add small delay to ensure database has been updated
+    const timer = setTimeout(async () => {
+      const fetchStats = async () => {
         setIsStatsLoading(true);
         try {
             // Overall stats
@@ -243,7 +243,11 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName,
             if (winsError || lossesError) throw new Error(winsError?.message || lossesError?.message);
 
             const totalGames = (wins ?? 0) + (losses ?? 0);
-            const overallRate = totalGames > 0 ? (((wins ?? 0) / totalGames) * 100).toFixed(0) : 'N/A';
+            const winPercentage = totalGames > 0 ? ((wins ?? 0) / totalGames) * 100 : 0;
+            const overallRate = totalGames > 0 ? winPercentage.toFixed(1) : 'N/A';
+            
+            // Debug logging
+            console.log(`Stats for ${winnerInfo.winner.name}: ${wins} wins, ${losses} losses, ${totalGames} total, ${winPercentage.toFixed(2)}%`);
 
             // Head-to-head stats
             const { count: h2hWins, error: h2hWinsError } = await supabase
@@ -264,8 +268,8 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName,
             const h2hRate = h2hTotalGames > 0 ? (((h2hWins ?? 0) / h2hTotalGames) * 100).toFixed(0) : 'N/A';
 
             setStats({
-                overall: overallRate === 'N/A' ? 'First Game!' : `${overallRate}%`,
-                h2h: h2hRate === 'N/A' ? 'First Matchup!' : `${h2hRate}%`,
+                overall: overallRate === 'N/A' ? 'First Game!' : `${overallRate}% (${wins}W-${losses}L)`,
+                h2h: h2hRate === 'N/A' ? 'First Matchup!' : `${h2hRate}% vs ${winnerInfo.loser.name}`,
             });
 
         } catch (err: any) {
@@ -274,17 +278,13 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName,
         } finally {
             setIsStatsLoading(false);
         }
-    };
+      };
 
-    fetchStats();
+      await fetchStats();
+    }, 500); // 500ms delay to ensure database is updated
 
-    const showTimer = setTimeout(() => setIsHidingWinner(true), 4000); // Longer duration to see stats
-    const advanceTimer = setTimeout(() => onChoiceMade(winnerInfo.winner, winnerInfo.loser), 4400); // Longer duration
-    return () => {
-      clearTimeout(showTimer);
-      clearTimeout(advanceTimer);
-    };
-  }, [winnerInfo, onChoiceMade]);
+    return () => clearTimeout(timer);
+  }, [winnerInfo]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

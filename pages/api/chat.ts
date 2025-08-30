@@ -3,13 +3,19 @@ import { NextApiRequest, NextApiResponse } from 'next';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log('=== CHAT API CALLED ===');
   console.log('Method:', req.method);
-  console.log('Headers:', req.headers);
   
   if (req.method !== 'POST') {
-    console.log('Method not allowed:', req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Simple test response first
+  return res.status(200).json({
+    success: true,
+    response: "Hey there! I'm working now! This is a test response to make sure the API route is functioning properly.",
+    tokenCount: 20
+  });
+
+  /* TODO: Re-enable OpenRouter once basic API is working
   try {
     const { prompt, modelName, accessLevel, personaJson } = req.body;
     console.log('Request data:', { prompt: prompt?.substring(0, 50), modelName, accessLevel });

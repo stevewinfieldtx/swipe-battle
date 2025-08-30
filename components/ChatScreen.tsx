@@ -523,67 +523,69 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         </div>
       </div>
 
-      {/* Right Side - Image Gallery */}
+            {/* Right Side - Image Gallery */}
       <div className="w-1/2 bg-black flex items-center justify-center relative overflow-hidden">
-        {imagesLoading ? (
-          <div className="flex flex-col items-center justify-center space-y-4 h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-            <p className="text-gray-400">Loading {modelName}'s photos...</p>
-          </div>
-        ) : modelImages.length > 0 ? (
-          <div className="w-full max-w-sm aspect-[3/4] relative">
-            <img 
-              src={modelImages[currentImageIndex]} 
-              alt={`${modelName} - Image ${currentImageIndex + 1}`}
-              className="w-full h-full object-cover transition-opacity duration-500 rounded-lg"
-              style={{ 
-                objectPosition: 'center top',
-                filter: 'brightness(0.95)' 
-              }}
-            />
-            
-            {/* Image overlay with model info */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-b-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-white text-lg font-bold">{modelName}</h3>
-                  <p className="text-gray-300 text-xs">SFW Gallery</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-white/70 text-xs">
-                    {currentImageIndex + 1} / {modelImages.length}
-                  </span>
-                  <div className="flex space-x-1">
-                    {modelImages.slice(0, Math.min(5, modelImages.length)).map((_, index) => (
-                      <div
-                        key={index}
-                        className={`w-1.5 h-1.5 rounded-full transition-all ${
-                          index === currentImageIndex % 5 ? 'bg-white' : 'bg-white/30'
-                        }`}
-                      />
-                    ))}
+        <div className="w-full max-w-sm aspect-[3/4] relative">
+          {imagesLoading ? (
+            <div className="flex flex-col items-center justify-center space-y-4 h-full">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+              <p className="text-gray-400">Loading {modelName}'s photos...</p>
+            </div>
+          ) : modelImages.length > 0 ? (
+            <>
+              <img 
+                src={modelImages[currentImageIndex]} 
+                alt={`${modelName} - Image ${currentImageIndex + 1}`}
+                className="w-full h-full object-cover transition-opacity duration-500 rounded-lg"
+                style={{ 
+                  objectPosition: 'center top',
+                  filter: 'brightness(0.95)' 
+                }}
+              />
+              
+              {/* Image overlay with model info */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-b-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-white text-lg font-bold">{modelName}</h3>
+                    <p className="text-gray-300 text-xs">SFW Gallery</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-white/70 text-xs">
+                      {currentImageIndex + 1} / {modelImages.length}
+                    </span>
+                    <div className="flex space-x-1">
+                      {modelImages.slice(0, Math.min(5, modelImages.length)).map((_, index) => (
+                        <div
+                          key={index}
+                          className={`w-1.5 h-1.5 rounded-full transition-all ${
+                            index === currentImageIndex % 5 ? 'bg-white' : 'bg-white/30'
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Subtle rotation indicator */}
-                        <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5">
-              <div className="w-2 h-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              {/* Subtle rotation indicator */}
+              <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5">
+                <div className="w-2 h-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center space-y-4 text-center h-full">
+              <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center">
+                <span className="text-gray-400 text-2xl">📷</span>
+              </div>
+              <div>
+                <p className="text-gray-400 text-lg">No images available</p>
+                <p className="text-gray-500 text-sm">Upload some photos to see them here</p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center space-y-4 text-center h-full">
-            <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center">
-              <span className="text-gray-400 text-2xl">📷</span>
-            </div>
-            <div>
-              <p className="text-gray-400 text-lg">No images available</p>
-              <p className="text-gray-500 text-sm">Upload some photos to see them here</p>
-            </div>
-          </div>
-        )}
-    </div>
+          )}
+        </div>
+      </div>
   );
 };
 

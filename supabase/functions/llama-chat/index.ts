@@ -133,7 +133,7 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "8b0ca2f75ef3c00e5951463c7b5329748e7e82e4a3ace6ae2d8da1f5c8d02643", // Llama 3.1 8B Instruct (updated working version)
+        version: "meta/meta-llama-3.1-8b-instruct", // Use model name instead of hash
         input: {
           prompt: `${systemPrompt}\n\nUser: ${userPrompt}\n\nAssistant:`,
           max_tokens: 150, // Limit to 150 tokens for concise responses

@@ -126,61 +126,62 @@ function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: s
 
 async function generateImageWithRunware(prompt: string, photoType: string) {
   try {
-    // Import Runware SDK modules (matching your working script)
-    const { Runware, IImageInference } = await import('https://esm.sh/@runware/sdk-js@latest')
+    // Import Runware SDK modules
+    const { Runware } = await import('https://esm.sh/@runware/sdk-js@latest')
     
     // Initialize Runware client
     const runware = new Runware({ apiKey: RUNWARE_API_KEY })
     
-    // Connect to Runware (like your script)
+    // Connect to Runware
     await runware.connect()
     console.log('Successfully connected to Runware')
 
-    // Create payload using IImageInference (matching your script exactly)
-    const payload = new IImageInference({
+    // Create payload as a plain object (not using constructor)
+    const payload = {
       model: RUNWARE_MODEL,
       positivePrompt: prompt,
       height: 768, // Portrait orientation for model photos
       width: 512,
-      steps: 28, // Using your script's step count
-      scheduler: "DPMSolverSinglestepScheduler", // Default from your script
+      steps: 28,
+      scheduler: "DPMSolverSinglestepScheduler",
       numberResults: 1,
-    })
+    }
 
     console.log(`Calling imageInference with model: ${RUNWARE_MODEL}`)
     
-    // Call imageInference exactly like your script
-    const results = await runware.imageInference({ requestImage: payload })
+    // Call imageInference with the payload
+    const results = await runware.imageInference(payload)
     
     console.log('Runware API response received:', results ? 'success' : 'null')
 
-    // Handle response exactly like your script
-    if (results && results[0] && 
-        hasattr(results[0], "imageURL") && 
-        results[0].imageURL) {
+    // Handle response from Runware API
+    if (results && Array.isArray(results) && results.length > 0) {
+      const result = results[0]
       
-      const imageUrl = results[0].imageURL
-      console.log(`Image generated successfully: ${imageUrl.substring(0, 60)}...`)
-      
-      return {
-        success: true,
-        imageUrl: imageUrl
+      // Check for imageURL in the response
+      if (result && result.imageURL) {
+        const imageUrl = result.imageURL
+        console.log(`Image generated successfully: ${imageUrl.substring(0, 60)}...`)
+        
+        return {
+          success: true,
+          imageUrl: imageUrl
+        }
+      } else if (result && result.error) {
+        return {
+          success: false,
+          error: `API Error: ${result.error}`
+        }
+      } else {
+        return {
+          success: false,
+          error: "No imageURL in response"
+        }
       }
     } else {
-      let errorDetail = "Malformed response or no imageURL."
-      if (results && results[0]) {
-        if (results[0].error) {
-          errorDetail = `API Error: ${results[0].error}`
-        } else if (results[0].message) {
-          errorDetail = `API Message: ${results[0].message}`
-        }
-      } else if (!results) {
-        errorDetail = "API returned no results."
-      }
-      
       return {
         success: false,
-        error: errorDetail
+        error: "API returned no results or empty array"
       }
     }
 
@@ -193,7 +194,4 @@ async function generateImageWithRunware(prompt: string, photoType: string) {
   }
 }
 
-// Helper function to check if object has property (like Python's hasattr)
-function hasattr(obj: any, prop: string): boolean {
-  return obj && typeof obj === 'object' && prop in obj
-}
+

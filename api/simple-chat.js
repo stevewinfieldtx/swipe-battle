@@ -26,7 +26,7 @@ export default async function handler(req, res) {
       const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer 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`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'https://model-wars.com',
           'X-Title': 'Model Wars Chat'

@@ -147,10 +147,10 @@ async function generateImageWithRunware(prompt: string, photoType: string) {
       numberResults: 1,
     }
 
-    console.log(`Calling imageInference with model: ${RUNWARE_MODEL}`)
+    console.log(`Calling requestImages with model: ${RUNWARE_MODEL}`)
     
-    // Call imageInference with the payload
-    const results = await runware.imageInference(payload)
+    // Call requestImages with the payload (correct Runware SDK method)
+    const results = await runware.requestImages(payload)
     
     console.log('Runware API response received:', results ? 'success' : 'null')
 

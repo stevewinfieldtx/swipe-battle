@@ -48,10 +48,18 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      throw new Error(`OpenRouter API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('OpenRouter error response:', errorText);
+      throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
+    console.log('OpenRouter response:', JSON.stringify(result, null, 2));
+    
+    if (!result.choices || !result.choices[0] || !result.choices[0].message) {
+      throw new Error('Invalid response format from OpenRouter');
+    }
+    
     const aiResponse = result.choices[0].message.content.trim();
 
     return res.status(200).json({

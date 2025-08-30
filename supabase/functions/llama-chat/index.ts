@@ -133,7 +133,7 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "meta/meta-llama-3.1-8b-instruct", // Use model name instead of hash
+        version: "lucataco/llama-2-13b-chat", // Better for adult content without heavy restrictions
         input: {
           prompt: `${systemPrompt}\n\nUser: ${userPrompt}\n\nAssistant:`,
           max_tokens: 150, // Limit to 150 tokens for concise responses

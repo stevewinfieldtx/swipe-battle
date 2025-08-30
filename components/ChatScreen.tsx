@@ -586,6 +586,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
           )}
         </div>
       </div>
+    </div>
   );
 };
 

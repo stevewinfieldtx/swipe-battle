@@ -150,17 +150,19 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
     const prediction = await response.json()
     console.log('Replicate prediction created:', prediction.id)
 
-    // Poll for completion
+    // Poll for completion with optimized timing
     let result = prediction
     let attempts = 0
-    const maxAttempts = 60 // 60 seconds max wait
+    const maxAttempts = 30 // 30 seconds max wait
 
     while (result.status === 'starting' || result.status === 'processing') {
       if (attempts >= maxAttempts) {
-        throw new Error('Timeout waiting for response')
+        throw new Error('Response taking too long, please try again')
       }
       
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Faster polling initially, then slower
+      const delay = attempts < 5 ? 500 : attempts < 15 ? 1000 : 2000
+      await new Promise(resolve => setTimeout(resolve, delay))
       attempts++
       
       const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
@@ -169,7 +171,12 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
         }
       })
       
+      if (!pollResponse.ok) {
+        throw new Error(`Polling error: ${pollResponse.status}`)
+      }
+      
       result = await pollResponse.json()
+      console.log(`Poll attempt ${attempts}: ${result.status}`)
     }
 
     if (result.status === 'succeeded') {

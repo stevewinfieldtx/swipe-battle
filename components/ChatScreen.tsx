@@ -548,14 +548,13 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
 
       {/* Right Side - Image Gallery */}
       <div className="w-1/2 bg-black flex items-center justify-center relative overflow-hidden">
-        <div className="w-full max-w-sm aspect-[3/4] relative">
         {imagesLoading ? (
-          <div className="flex flex-col items-center space-y-4">
+          <div className="flex flex-col items-center justify-center space-y-4 h-full">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
             <p className="text-gray-400">Loading {modelName}'s photos...</p>
           </div>
         ) : modelImages.length > 0 ? (
-          <>
+          <div className="w-full max-w-sm aspect-[3/4] relative">
             <img 
               src={modelImages[currentImageIndex]} 
               alt={`${modelName} - Image ${currentImageIndex + 1}`}
@@ -592,12 +591,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
             </div>
 
             {/* Subtle rotation indicator */}
-            <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5">
+                        <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5">
               <div className="w-2 h-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             </div>
-          </>
+          </div>
         ) : (
-          <div className="flex flex-col items-center space-y-4 text-center">
+          <div className="flex flex-col items-center justify-center space-y-4 text-center h-full">
             <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center">
               <span className="text-gray-400 text-2xl">📷</span>
             </div>
@@ -607,7 +606,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 };

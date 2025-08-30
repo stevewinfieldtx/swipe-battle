@@ -94,32 +94,32 @@ serve(async (req) => {
 })
 
 function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: string): string {
-  // Base prompt enhancement
-  let enhanced = `Beautiful woman named ${modelName}, ${userPrompt}`
+  // Start with a comprehensive base prompt (targeting 225-250 tokens)
+  let enhanced = `Stunning portrait of a beautiful woman named ${modelName}, ${userPrompt}, `
 
-  // Add photo type specific styling
+  // Add detailed photo type specific styling and composition
   switch (photoType) {
     case 'sfw':
-      enhanced += ', appropriate clothing, elegant pose, professional photography, high quality, detailed'
+      enhanced += `wearing tasteful and elegant clothing that flatters her figure, sophisticated and classy outfit, perfect posture with confident and graceful pose, natural and genuine expression, warm and inviting smile, professional fashion photography style, elegant composition with perfect framing, soft natural lighting that enhances her features, beautiful background that complements the overall aesthetic, appropriate and stylish setting, high-end fashion photography quality, detailed facial features with expressive eyes, flawless skin texture, perfect hair styling, sophisticated makeup that enhances natural beauty, professional modeling pose, elegant and refined atmosphere`
       break
     case 'bikini':
-      enhanced += ', wearing a bikini, beach setting or pool, summer vibes, professional photography, high quality'
+      enhanced += `wearing a stylish and flattering bikini that suits her body type perfectly, tropical beach setting with crystal clear blue water and pristine white sand, or luxurious pool area with elegant resort ambiance, summer vacation vibes with warm golden sunlight, relaxed and confident beach pose showing her natural beauty, genuine carefree smile, professional swimwear photography style, perfect composition with stunning beach or pool backdrop, natural outdoor lighting with golden hour glow, beautiful ocean waves or sparkling pool water, palm trees or elegant poolside furniture, high-quality swimwear photography, detailed skin texture with healthy sun-kissed glow, flowing hair moved by gentle ocean breeze, beach or poolside accessories, vibrant summer colors, tropical paradise atmosphere`
       break
     case 'lingerie':
-      enhanced += ', wearing elegant lingerie, bedroom setting, soft lighting, artistic pose, professional photography'
+      enhanced += `wearing exquisite and elegant lingerie that perfectly accentuates her feminine curves, luxurious bedroom setting with sophisticated interior design, soft romantic lighting creating intimate and artistic atmosphere, sensual and artistic pose that emphasizes her natural beauty and confidence, gentle and alluring expression, professional boudoir photography style, perfect composition with elegant bedroom backdrop, warm ambient lighting with soft shadows, beautiful silk sheets or elegant furniture, sophisticated color palette, high-end intimate photography quality, detailed skin texture with natural glow, perfect hair styling, subtle and elegant makeup, delicate jewelry or accessories, romantic and intimate ambiance, artistic and tasteful composition, luxurious and sophisticated setting`
       break
     case 'topless':
-      enhanced += ', artistic topless pose, tasteful composition, professional artistic photography, soft lighting'
+      enhanced += `artistic topless portrait emphasizing natural feminine beauty, tasteful and sophisticated composition that celebrates the human form, confident and empowered pose showing strength and elegance, serene and contemplative expression, professional artistic nude photography style, perfect lighting that sculpts her form beautifully, artistic studio setting or natural outdoor location, soft directional lighting creating beautiful highlights and shadows, elegant and refined atmosphere, high-end art photography quality, detailed skin texture with natural luminosity, flowing hair, minimalist and sophisticated background, artistic composition focusing on form and beauty, tasteful and respectful presentation, gallery-worthy artistic photography, sophisticated and elegant mood, professional artistic direction`
       break
     case 'nude':
-      enhanced += ', artistic nude pose, tasteful and elegant, professional art photography, beautiful lighting'
+      enhanced += `artistic nude portrait celebrating natural feminine beauty and form, tasteful and sophisticated artistic composition, confident and empowered pose emphasizing grace and elegance, serene and contemplative expression showing inner strength, professional fine art nude photography style, perfect studio lighting that sculpts her form with beautiful highlights and shadows, elegant artistic setting with minimalist sophisticated background, soft directional lighting creating dramatic and beautiful contrast, artistic and refined atmosphere, gallery-quality fine art photography, detailed skin texture with natural luminous glow, flowing hair styling, sophisticated artistic composition, tasteful and respectful presentation of the human form, museum-worthy artistic photography, sophisticated and elegant artistic mood, professional artistic direction, timeless and classic aesthetic`
       break
     default:
-      enhanced += ', professional photography, high quality, detailed'
+      enhanced += `professional portrait photography with elegant composition, sophisticated lighting, and refined artistic direction, high-quality detailed imagery`
   }
 
-  // Add quality and style modifiers
-  enhanced += ', 8k resolution, sharp focus, realistic, photorealistic'
+  // Add comprehensive technical and quality specifications
+  enhanced += `, captured with professional photography equipment, 8K ultra-high resolution, crystal clear sharp focus, photorealistic rendering with exceptional detail, perfect exposure and color grading, professional retouching, magazine-quality finish, award-winning photography composition, masterpiece quality, hyperrealistic detail, perfect skin texture and natural beauty`
 
   return enhanced
 }

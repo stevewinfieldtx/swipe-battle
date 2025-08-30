@@ -215,90 +215,53 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     setError(null);
 
     try {
-      // Generate personality-based response
-      setTimeout(() => {
-        const userText = userMessage.content.toLowerCase();
-        let response = '';
-        
-        if (personality) {
-          // Check for NSFW content in SFW mode
-          const nsfwKeywords = ['sex', 'sexy', 'naked', 'nude', 'horny', 'fuck', 'dick', 'pussy', 'boobs', 'tits'];
-          const hasNsfwContent = nsfwKeywords.some(keyword => userText.includes(keyword));
-          
-          if (chatMode === 'sfw' && hasNsfwContent) {
-            response = "I'm in SFW mode right now, so I prefer to keep our conversation friendly and appropriate. Let's talk about something else! What else is on your mind?";
-          } else if (userText.includes('hello') || userText.includes('hi') || userText.includes('hey')) {
-            response = chatMode === 'nsfw' && personality.chat_behavior.typical_responses.greeting_subscriber 
-              ? personality.chat_behavior.typical_responses.greeting_subscriber
-              : personality.chat_behavior.typical_responses.greeting_general;
-          } else if (userText.includes('beautiful') || userText.includes('gorgeous') || userText.includes('pretty')) {
-            response = personality.chat_behavior.typical_responses.compliment_received;
-          } else if (userText.includes('role play') || userText.includes('roleplay')) {
-            response = chatMode === 'nsfw' 
-              ? personality.chat_behavior.typical_responses.flirty_message
-              : "I love creative conversations! What kind of fun, friendly roleplay scenario did you have in mind?";
-          } else if (userText.includes('bye') || userText.includes('goodbye') || userText.includes('later')) {
-            response = personality.chat_behavior.typical_responses.goodbye;
-          } else if (userText.includes('thank') || userText.includes('thanks')) {
-            response = "You're so welcome! Your kindness means a lot to me.";
-          } else {
-            // Generate responses based on personality traits
-            if (modelName.toLowerCase() === 'mai') {
-              if (userText.includes('art') || userText.includes('travel') || userText.includes('study')) {
-                response = "That's fascinating! You know I'm always curious about new perspectives. Tell me more about that - I love learning from people who are passionate about their interests.";
-              } else if (userText.includes('texas') || userText.includes('austin')) {
-                response = "Well, shucks! You know about my Texas roots? Y'all are making me feel right at home. What brings that up?";
-              } else {
-                const responses = [
-                  "That's really interesting! You've got me curious now - what's the story there?",
-                  "I love how you think! You seem like someone who'd have fascinating stories to share.",
-                  "You know what? That reminds me of something I experienced while traveling. Tell me more about your perspective on that."
-                ];
-                response = responses[Math.floor(Math.random() * responses.length)];
-              }
-            } else if (modelName.toLowerCase() === 'claudia') {
-              if (userText.includes('nature') || userText.includes('mountain') || userText.includes('garden')) {
-                response = "Ay, you understand the beauty of la naturaleza. There is something so peaceful about being connected to the earth, no? What is your favorite place in nature?";
-              } else if (userText.includes('family') || userText.includes('home')) {
-                response = "Family and home... these are the things that matter most. You speak of something close to my heart. Tell me about what home means to you.";
-              } else {
-                const responses = [
-                  "Your words are kind. I like how you see the world... tell me more about what brings you peace.",
-                  "La vida es simple, but you make it more beautiful with your thoughts. What else is in your heart today?",
-                  "You have a gentle spirit, I can feel it. What is something that made you smile recently?"
-                ];
-                response = responses[Math.floor(Math.random() * responses.length)];
-              }
-            } else {
-              // Default fallback for models without personalities
-              const contextualResponses = [
-                `That's really interesting! Tell me more about that.`,
-                `I love hearing your thoughts! What else is on your mind?`,
-                `You seem really cool! I'm enjoying getting to know you better.`
-              ];
-              response = contextualResponses[Math.floor(Math.random() * contextualResponses.length)];
-            }
-          }
-        } else {
-          // Fallback without personality
-          response = `That's interesting! I'd love to hear more about your thoughts on that.`;
-        }
-        
-        const assistantMessage: Message = {
+      // Map chat mode to access level
+      const accessLevel = chatMode === 'nsfw' ? 'MONTHLY' : 'FREE';
+      
+      // Call Llama 3 70B Edge Function
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/llama-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: JSON.stringify({
+          prompt: userMessage.content,
+          modelName: modelName,
+          accessLevel: accessLevel,
+          personaJson: personality,
+          userId: (await supabase.auth.getUser()).data.user?.id
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: response,
+          content: result.response,
           timestamp: new Date()
         };
-
-        setMessages(prev => [...prev, assistantMessage]);
-        setIsLoading(false);
-      }, 1000 + Math.random() * 2000); // 1-3 second delay for realism
+        
+        setMessages(prev => [...prev, aiMessage]);
+      } else {
+        throw new Error(result.error || 'Failed to generate response');
+      }
       
-      return; // Exit early since we're using setTimeout
-    } catch (err: any) {
-      setError(err.message || 'Failed to send message');
-      console.error('Chat error:', err);
+    } catch (error) {
+      console.error('Chat error:', error);
+      
+      // Fallback to simple response if AI fails
+      const fallbackMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "I'm having trouble connecting right now, but I'm here! Can you tell me more about what's on your mind?",
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, fallbackMessage]);
+      setError('AI service temporarily unavailable');
     } finally {
       setIsLoading(false);
     }

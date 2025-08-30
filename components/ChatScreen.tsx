@@ -192,18 +192,46 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     setInputMessage('');
     setIsLoading(true);
 
-    // Simple echo response after 1 second
-    setTimeout(() => {
+    // Call simple AI endpoint
+    try {
+      const response = await fetch('/api/simple-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: userMessage.content,
+          modelName: modelName
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.response,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, aiMessage]);
+      } else {
+        throw new Error('AI API failed');
+      }
+    } catch (error) {
+      // Fallback to echo if AI fails
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `You said: "${userMessage.content}"`,
+        content: `You said: "${userMessage.content}" (AI temporarily unavailable)`,
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, aiMessage]);
-      setIsLoading(false);
-    }, 1000);
+    }
+    
+    setIsLoading(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

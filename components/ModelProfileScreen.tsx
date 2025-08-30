@@ -115,7 +115,7 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
       }
 
       // Call the image generation Edge Function
-      const response = await fetch('/functions/v1/generate-image', {
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/generate-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

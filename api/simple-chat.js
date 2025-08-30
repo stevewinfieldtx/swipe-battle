@@ -15,6 +15,11 @@ export default async function handler(req, res) {
   try {
     const { message, modelName } = req.body;
     console.log('Simple chat request:', { message: message?.substring(0, 50), modelName });
+    console.log('OpenRouter API Key available:', !!process.env.OPENROUTER_API_KEY);
+
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error('OpenRouter API key not configured in Vercel');
+    }
 
     // Call OpenRouter for real AI responses
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {

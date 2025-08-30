@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, BUCKET_NAME, NSFW_BUCKET_NAME } from '../supabaseClient';
-import { ModelProfile, CustomPhotoRequest } from '../types';
+import { ModelProfile, CustomPhotoRequest, PRICING } from '../types';
+import TokenBalance from './TokenBalance';
 
 interface ModelProfileScreenProps {
   modelName: string;
   onBack: () => void;
   onStartChat: () => void;
+  userTokens: number;
+  onBuyTokens: () => void;
+  isCreator?: boolean;
 }
 
-const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBack, onStartChat }) => {
+const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBack, onStartChat, userTokens, onBuyTokens, isCreator = false }) => {
   const [modelProfile, setModelProfile] = useState<ModelProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCustomRequestForm, setShowCustomRequestForm] = useState(false);
   const [requestText, setRequestText] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [selectedPhotoType, setSelectedPhotoType] = useState<'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude'>('sfw');
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [selectedGalleryType, setSelectedGalleryType] = useState<'sfw' | 'nsfw'>('sfw');
   const [activeTab, setActiveTab] = useState<'gallery' | 'story' | 'requests' | 'nsfw'>('story');
@@ -307,10 +312,28 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
               
               {!showCustomRequestForm ? (
                 <div className="bg-gray-800 rounded-xl p-6">
-                  <h3 className="text-xl font-bold mb-4">Request Custom Photos</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold">Request Custom Photos</h3>
+                    <TokenBalance balance={userTokens} onClick={onBuyTokens} size="small" isCreator={isCreator} />
+                  </div>
                   <p className="text-gray-300 mb-6">
                     Want a specific style, pose, or setting? Submit a custom photo request and our AI will create personalized content featuring {modelProfile.name}.
                   </p>
+                  
+                  {/* Pricing Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                    {Object.entries(PRICING.PHOTOS).map(([type, pricing]) => (
+                      <div 
+                        key={type}
+                        className="bg-gray-700 rounded-lg p-3 text-center"
+                      >
+                        <div className="font-semibold text-white">{pricing.label}</div>
+                        <div className="text-purple-400 text-sm">{pricing.tokens} tokens</div>
+                        <div className="text-gray-400 text-xs">${pricing.price}</div>
+                      </div>
+                    ))}
+                  </div>
+                  
                   <button 
                     onClick={() => setShowCustomRequestForm(true)}
                     className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full transition-colors"
@@ -320,8 +343,31 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
                 </div>
               ) : (
                 <div className="bg-gray-800 rounded-xl p-6">
-                  <h3 className="text-xl font-bold mb-4">Submit Custom Request</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold">Submit Custom Request</h3>
+                    <TokenBalance balance={userTokens} onClick={onBuyTokens} size="small" isCreator={isCreator} />
+                  </div>
                   <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Photo Type</label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {Object.entries(PRICING.PHOTOS).map(([type, pricing]) => (
+                          <button
+                            key={type}
+                            onClick={() => setSelectedPhotoType(type as any)}
+                            className={`p-3 rounded-lg border-2 transition-all ${
+                              selectedPhotoType === type
+                                ? 'border-purple-500 bg-purple-900/30'
+                                : 'border-gray-600 bg-gray-700 hover:border-purple-400'
+                            }`}
+                          >
+                            <div className="font-semibold text-white">{pricing.label}</div>
+                            <div className="text-purple-400 text-sm">{pricing.tokens} tokens</div>
+                            <div className="text-gray-400 text-xs">${pricing.price}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">Your Email</label>
                       <input

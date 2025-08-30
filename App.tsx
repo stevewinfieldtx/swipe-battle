@@ -11,6 +11,8 @@ import StatsScreen from './components/StatsScreen.tsx';
 import AdminScreen from './components/AdminScreen';
 import ModelProfileScreen from './components/ModelProfileScreen';
 import ChatScreen from './components/ChatScreen';
+import ModelListScreen from './components/ModelListScreen';
+import TokenStore from './components/TokenStore';
 
 // --- SUB-COMPONENTS FOR CLARITY ---
 
@@ -29,8 +31,8 @@ const ConfigurationErrorScreen: React.FC = () => (
     </div>
 );
 
-const StartScreen: React.FC<{ onStart: (bucket: string) => void; onShowStats: () => void; onShowAdmin: () => void; onShowSubscription: () => void; isPremium: boolean; onSignOut: () => void }> = 
-({ onStart, onShowStats, onShowAdmin, onShowSubscription, isPremium, onSignOut }) => {
+const StartScreen: React.FC<{ onStart: (bucket: string) => void; onShowStats: () => void; onShowAdmin: () => void; onShowSubscription: () => void; onShowModelList: () => void; isPremium: boolean; onSignOut: () => void; isCreator: boolean }> = 
+({ onStart, onShowStats, onShowAdmin, onShowSubscription, onShowModelList, isPremium, onSignOut, isCreator }) => {
     return (
         <div className="flex flex-col items-center justify-center h-full text-white p-4 animate-fade-in">
           <div className="text-center mb-10">
@@ -45,6 +47,9 @@ const StartScreen: React.FC<{ onStart: (bucket: string) => void; onShowStats: ()
               {isPremium ? 'Start NSFW Battle' : 'Unlock NSFW Mode ✨'}
             </button>
             <button onClick={onShowStats} className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-colors">My Stats</button>
+            {isCreator && (
+              <button onClick={onShowModelList} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">Model Directory</button>
+            )}
             <button onClick={onShowAdmin} className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-colors">Creator Studio</button>
           </div>
           <button onClick={onSignOut} className="absolute top-4 right-4 bg-gray-700/50 hover:bg-gray-600/80 text-white text-xs py-2 px-4 rounded-full transition-colors">
@@ -114,12 +119,15 @@ const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isPremium, setIsPremium] = useState(false);
+  const [isCreator, setIsCreator] = useState(false);
+  const [userTokens, setUserTokens] = useState(0);
   const [gameState, setGameState] = useState<GameState>('start');
   const [round, setRound] = useState(1);
   const [score, setScore] = useState(0);
   const [winners, setWinners] = useState<BattleImage[]>([]);
   const [battleBucket, setBattleBucket] = useState(BUCKET_NAME);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showTokenStore, setShowTokenStore] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
   useEffect(() => {
@@ -133,6 +141,20 @@ const App: React.FC = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsPremium(session?.user?.user_metadata?.is_premium ?? false);
+      setIsCreator(session?.user?.email === 'stevewinfieldtx@gmail.com');
+      
+      // Load user tokens when authenticated
+      if (session?.user) {
+        if (session.user.email === 'stevewinfieldtx@gmail.com') {
+          // Creator gets unlimited tokens
+          setUserTokens(999999);
+        } else {
+          loadUserTokens(session.user.id);
+        }
+      } else {
+        setUserTokens(0);
+      }
+      
       // Reset to start screen on auth change to prevent being stuck on a protected page
       if (_event === 'SIGNED_OUT') {
         setGameState('start');
@@ -186,6 +208,68 @@ const App: React.FC = () => {
     setGameState('modelProfile');
   };
 
+  const handleShowModelList = () => {
+    setGameState('modelList');
+  };
+
+  const loadUserTokens = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_tokens')
+        .select('balance')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error loading tokens:', error);
+        setUserTokens(0);
+      } else {
+        setUserTokens(data?.balance || 0);
+      }
+    } catch (err) {
+      console.error('Error loading tokens:', err);
+      setUserTokens(0);
+    }
+  };
+
+  const handleTokenPurchase = (tokens: number) => {
+    setUserTokens(prev => prev + tokens);
+    setShowTokenStore(false);
+  };
+
+  const handleSpendTokens = async (amount: number, description: string) => {
+    if (!user) return;
+    
+    // Creator doesn't spend tokens
+    if (user.email === 'stevewinfieldtx@gmail.com') {
+      console.log(`Creator action: ${description} (${amount} tokens) - FREE`);
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase.rpc('spend_user_tokens', {
+        user_id: user.id,
+        tokens_to_spend: amount,
+        description: description
+      });
+
+      if (error) {
+        console.error('Error spending tokens:', error);
+        return;
+      }
+
+      if (data) {
+        // Successfully spent tokens, update local balance
+        setUserTokens(prev => prev - amount);
+      } else {
+        // Insufficient tokens
+        alert('Insufficient tokens for this action');
+      }
+    } catch (err) {
+      console.error('Error spending tokens:', err);
+    }
+  };
+
   const renderContent = () => {
     if (!IS_CONFIGURED) {
       return <ConfigurationErrorScreen />;
@@ -205,9 +289,26 @@ const App: React.FC = () => {
       case 'admin':
         return <AdminScreen onBack={() => setGameState('start')} />;
       case 'modelProfile':
-        return <ModelProfileScreen modelName={selectedModel!} onBack={() => setGameState('stats')} onStartChat={() => setGameState('chat')} />;
+        return <ModelProfileScreen 
+          modelName={selectedModel!} 
+          onBack={() => setGameState('stats')} 
+          onStartChat={() => setGameState('chat')} 
+          userTokens={userTokens}
+          onBuyTokens={() => setShowTokenStore(true)}
+          isCreator={isCreator}
+        />;
       case 'chat':
-        return <ChatScreen modelName={selectedModel!} onBack={() => setGameState('modelProfile')} />;
+        return <ChatScreen 
+          modelName={selectedModel!} 
+          onBack={() => setGameState('modelProfile')} 
+          userTokens={userTokens}
+          onBuyTokens={() => setShowTokenStore(true)}
+          onSpendTokens={handleSpendTokens}
+          isCreator={isCreator}
+          isAuthenticated={!!user}
+        />;
+      case 'modelList':
+        return <ModelListScreen onBack={() => setGameState('start')} onSelectModel={handleShowModelProfile} />;
       case 'start':
       default:
         return (
@@ -218,6 +319,8 @@ const App: React.FC = () => {
             onSignOut={handleSignOut}
             onShowStats={() => setGameState('stats')}
             onShowAdmin={() => setGameState('admin')}
+            onShowModelList={handleShowModelList}
+            isCreator={isCreator}
           />
         );
     }
@@ -237,6 +340,13 @@ const App: React.FC = () => {
           <SubscriptionModal 
               onClose={() => setShowSubscriptionModal(false)}
               onSubscribe={handleSubscribe}
+          />
+        )}
+        {showTokenStore && (
+          <TokenStore 
+            currentBalance={userTokens}
+            onPurchase={handleTokenPurchase}
+            onClose={() => setShowTokenStore(false)}
           />
         )}
       </main>

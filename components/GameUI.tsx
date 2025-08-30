@@ -202,10 +202,10 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName,
   useEffect(() => {
     if (!winnerInfo) return;
 
-    // Start hiding animation after 2 seconds
+    // Start hiding animation after 3 seconds (longer to read stats)
     const hideTimer = setTimeout(() => {
       setIsHidingWinner(true);
-    }, 2000);
+    }, 3000);
 
     // Complete transition and advance to next round after animation
     const advanceTimer = setTimeout(() => {
@@ -213,7 +213,7 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName,
       setIsHidingWinner(false);
       setChoice(null);
       onChoiceMade(winnerInfo.winner);
-    }, 2500);
+    }, 3500);
 
     return () => {
       clearTimeout(hideTimer);
@@ -268,7 +268,7 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName,
             const h2hRate = h2hTotalGames > 0 ? (((h2hWins ?? 0) / h2hTotalGames) * 100).toFixed(0) : 'N/A';
 
             setStats({
-                overall: overallRate === 'N/A' ? 'First Game!' : `${overallRate}% (${wins}W-${losses}L)`,
+                overall: overallRate === 'N/A' ? 'First Game!' : `${overallRate}%`,
                 h2h: h2hRate === 'N/A' ? 'First Matchup!' : `${h2hRate}% vs ${winnerInfo.loser.name}`,
             });
 

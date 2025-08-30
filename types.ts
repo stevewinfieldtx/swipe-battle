@@ -1,4 +1,4 @@
-export type GameState = 'start' | 'playing' | 'end' | 'winners' | 'chat';
+export type GameState = 'start' | 'playing' | 'end' | 'winners' | 'chat' | 'modelList';
 
 export type SwipeDirection = 'left' | 'right';
 
@@ -20,6 +20,112 @@ export interface CustomPhotoRequest {
   modelName: string;
   requestText: string;
   userEmail: string;
+  photoType: 'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude';
+  tokenCost: number;
   status: 'pending' | 'approved' | 'completed' | 'rejected';
   createdAt: string;
+}
+
+export interface TokenPurchaseOption {
+  id: string;
+  tokens: number;
+  price: number;
+  bonus: number;
+  popular?: boolean;
+}
+
+export interface UserTokens {
+  balance: number;
+  lastUpdated: Date;
+}
+
+export interface ChatSession {
+  modelName: string;
+  startTime: Date;
+  endTime: Date;
+  remainingMinutes: number;
+  tokenCost: number;
+}
+
+export const PRICING = {
+  PHOTOS: {
+    sfw: { tokens: 2, price: 0.50, label: 'SFW' },
+    bikini: { tokens: 2, price: 0.50, label: 'Bikini' },
+    lingerie: { tokens: 2, price: 0.50, label: 'Lingerie' },
+    topless: { tokens: 3, price: 0.75, label: 'Topless' },
+    nude: { tokens: 4, price: 1.00, label: 'Nude' }
+  },
+  CHAT: {
+    sfw: { tokens: 15, price: 3.75, minutes: 30, label: 'SFW Chat' },
+    nsfw: { tokens: 20, price: 5.00, minutes: 30, label: 'NSFW Chat' }
+  }
+} as const;
+
+export type ChatMode = 'sfw' | 'nsfw';
+
+export interface ModelPersonality {
+  model_id: number;
+  name: string;
+  age: number;
+  ethnicity: string;
+  origin: string;
+  big_five: {
+    openness: number;
+    conscientiousness: number;
+    extraversion: number;
+    agreeableness: number;
+    neuroticism: number;
+  };
+  primary_type: string;
+  description: string;
+  personality_traits: {
+    core_traits: string[];
+    communication_style: string;
+    interests: string[];
+    profession: string;
+    values: string[];
+    humor_type: string;
+  };
+  intimate_profile: {
+    romantic_orientation: string;
+    relationship_style: string;
+    turn_ons: string[];
+    turn_offs: string[];
+    kinks_and_curiosities: string[];
+  };
+  chat_behavior: {
+    flirting_style: string;
+    conversation_starters: string[];
+    passionate_topics: string[];
+    response_to_compliments: string;
+    typical_responses: {
+      greeting_general: string;
+      greeting_subscriber: string;
+      compliment_received: string;
+      flirty_message: string;
+      goodbye: string;
+    };
+    upsell_tease_hooks: string[];
+    roleplay_starters: string[];
+  };
+  voice_profile: {
+    tone: string;
+    pace: string;
+    accent: string;
+    pitch: string;
+    speaking_patterns: string[];
+    signature_phrases: string[];
+    laugh_style: string;
+    voice_characteristics: {
+      breathiness: string;
+      warmth: string;
+      confidence: string;
+      playfulness: string;
+    };
+  };
+  ai_instructions: {
+    personality_prompt: string;
+    conversation_guidelines: string[];
+    avoid: string[];
+  };
 }

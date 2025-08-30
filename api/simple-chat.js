@@ -71,7 +71,7 @@ export default async function handler(req, res) {
         aiResponse = result.response.trim();
       } else {
         console.error('Unexpected OpenRouter response format:', result);
-        throw new Error('Invalid response format from OpenRouter');
+        throw new Error(`Invalid response format from OpenRouter. Got: ${JSON.stringify(result)}`);
       }
 
       return res.status(200).json({

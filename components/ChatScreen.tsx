@@ -196,8 +196,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       // Map chat mode to access level
       const accessLevel = chatMode === 'nsfw' ? 'MONTHLY' : 'FREE';
       
-      // Call our own Next.js API route - no Supabase needed!
-      const response = await fetch('/api/chat', {
+      // Use existing Supabase Edge Function that we know works
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/llama-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

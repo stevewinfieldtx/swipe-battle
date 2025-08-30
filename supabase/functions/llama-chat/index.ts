@@ -129,7 +129,7 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
         'X-Title': 'FanVue Companion Chat'
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-2-7b-chat", // Fast, reliable model for NSFW content
+        model: "openai/gpt-3.5-turbo", // Reliable model that works well with OpenRouter
         messages: [
           {
             role: "system",

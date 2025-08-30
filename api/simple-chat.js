@@ -59,9 +59,20 @@ export default async function handler(req, res) {
       }
 
       const result = await openRouterResponse.json();
-      console.log('OpenRouter success:', result);
+      console.log('OpenRouter success:', JSON.stringify(result, null, 2));
       
-      const aiResponse = result.choices[0].message.content.trim();
+      // Handle different response formats
+      let aiResponse;
+      if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
+        aiResponse = result.choices[0].message.content.trim();
+      } else if (result.output) {
+        aiResponse = result.output.trim();
+      } else if (result.response) {
+        aiResponse = result.response.trim();
+      } else {
+        console.error('Unexpected OpenRouter response format:', result);
+        throw new Error('Invalid response format from OpenRouter');
+      }
 
       return res.status(200).json({
         success: true,

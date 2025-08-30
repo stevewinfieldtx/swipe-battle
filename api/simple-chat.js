@@ -14,42 +14,22 @@ export default async function handler(req, res) {
 
   try {
     const { message, modelName } = req.body;
+    console.log('Simple chat request:', { message: message?.substring(0, 50), modelName });
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://model-wars.com',
-        'X-Title': 'Model Wars Chat'
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are ${modelName}, a friendly virtual companion. Keep responses under 150 tokens. Be flirty and engaging.`
-          },
-          {
-            role: "user", 
-            content: message
-          }
-        ],
-        max_tokens: 150,
-        temperature: 0.7
-      })
-    });
+    // For now, return a simple AI-like response to test the endpoint
+    const responses = [
+      `Hey there! I'm ${modelName} and I love chatting with you! 💕`,
+      `That's interesting! Tell me more about that 😊`,
+      `You're so sweet! I really enjoy our conversations 💖`,
+      `Mmm, I like where this is going... what else is on your mind? 😉`,
+      `You always know what to say to make me smile! ✨`
+    ];
 
-    if (!response.ok) {
-      throw new Error(`OpenRouter API error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const aiResponse = result.choices[0].message.content.trim();
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
 
     return res.status(200).json({
       success: true,
-      response: aiResponse
+      response: randomResponse
     });
 
   } catch (error) {

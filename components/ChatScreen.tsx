@@ -220,11 +220,13 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         throw new Error('AI API failed');
       }
     } catch (error) {
-      // Fallback to echo if AI fails
+      console.error('Frontend chat error:', error);
+      
+      // Show detailed error for debugging
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `You said: "${userMessage.content}" (AI temporarily unavailable)`,
+        content: `Error: ${error.message || 'AI temporarily unavailable'}`,
         timestamp: new Date()
       };
       

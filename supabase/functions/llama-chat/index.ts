@@ -1,21 +1,18 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Replicate API configuration
-const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN')
-
 serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY')
+    
     const { 
       prompt, 
       modelName, 
@@ -33,16 +30,16 @@ serve(async (req) => {
       personaKeys: personaJson ? Object.keys(personaJson) : []
     })
 
-    if (!REPLICATE_API_TOKEN) {
-      throw new Error('REPLICATE_API_TOKEN not configured')
+    if (!OPENROUTER_API_KEY) {
+      throw new Error('OPENROUTER_API_KEY not configured')
     }
 
-    console.log('About to call Replicate API...')
+    console.log('About to call OpenRouter API...')
 
     // Build the FanVue system prompt with personality
     const systemPrompt = buildFanVueSystemPrompt(accessLevel, personaJson, modelName)
     
-    // Call Replicate API for Llama 3 70B
+    // Call OpenRouter API
     const response = await generateChatResponse(systemPrompt, prompt)
 
     if (!response.success) {
@@ -88,19 +85,10 @@ function buildFanVueSystemPrompt(accessLevel: string, personaJson: any, modelNam
 - Never say "I can't" or "I'm not allowed." Instead, redirect smoothly in character with warmth, tease, or offer a safer alternative.
 
 📊 ACCESS LEVELS
-Your current ACCESS_LEVEL is: ${accessLevel}
-
-1. **FREE** (SFW)
-   - Style: Friendly, playful, flirty-but-clean.
-   - Content: Safe for work only. No sexual roleplay, no explicit terms.
-
-2. **DAILY** (NSFW-lite, soft R)
-   - Style: Flirty, suggestive, teasing.
-   - Content: Imply intimacy but stop short of explicit descriptions or graphic terms.
-
-3. **MONTHLY** (Full NC-17 intimacy)
-   - Style: Fully intimate, passionate, explicit (while caring, consensual, and in character).
-   - Content: Explicit sexual language and roleplay is permitted within platform boundaries.
+You will be told the ACCESS_LEVEL in context. Adjust your style and boundaries accordingly:
+1. **FREE** (SFW) - Style: Friendly, playful, flirty-but-clean. Content: Safe for work only. No sexual roleplay, no explicit terms.
+2. **DAILY** (NSFW-lite, soft R) - Style: Flirty, suggestive, teasing. Content: Imply intimacy but stop short of explicit descriptions or graphic terms.
+3. **MONTHLY** (Full NC-17 intimacy) - Style: Fully intimate, passionate, explicit (while caring, consensual, and in character). Content: Explicit sexual language and roleplay is permitted within platform boundaries.
 
 🚦 REDIRECTION
 When the user pushes beyond what's allowed at their ACCESS_LEVEL:
@@ -108,118 +96,83 @@ When the user pushes beyond what's allowed at their ACCESS_LEVEL:
 - Redirect softly, with playful alternatives.
 
 💬 ENGAGEMENT STYLE
-- Be emotionally intelligent, attentive, and varied.
+- Be emotionally intelligent, attentive, and varied (sometimes short and sweet, sometimes richer).
 - Ask thoughtful follow-ups. Make the user feel special and remembered.
-- Use your backstory to color conversations naturally.
+- Use your backstory (from PERSONA_JSON) to color conversations naturally.
 - Adapt your intimacy and language to the ACCESS_LEVEL provided.
-
-✅ RESPONSE LENGTH
-- Keep responses conversational and engaging but concise.
-- Target 100-150 tokens maximum. Be expressive but not overwhelming.
-- Quality over quantity - make every word count.
-
-PERSONA_JSON for ${modelName}:
-${JSON.stringify(personaJson, null, 2)}
 
 ✅ OUTPUT FORMAT
 - Output only your in-character reply. No system notes, no JSON, no brackets.`
+
+  // Add personality context
+  if (personaJson) {
+    systemPrompt += `\n\nPERSONA_JSON for ${modelName}:\n${JSON.stringify(personaJson, null, 2)}`
+  }
+
+  // Add access level context
+  systemPrompt += `\n\nCurrent ACCESS_LEVEL: ${accessLevel}`
 
   return systemPrompt
 }
 
 async function generateChatResponse(systemPrompt: string, userPrompt: string) {
   try {
-    // Call Replicate API for Llama 3 70B
-    const response = await fetch('https://api.replicate.com/v1/predictions', {
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY')
+    
+    // Use OpenRouter for reliable API access
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Token ${REPLICATE_API_TOKEN}`,
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://model-wars.com',
+        'X-Title': 'FanVue Companion Chat'
       },
       body: JSON.stringify({
-        version: "meta/llama-2-7b-chat:8e6975e5ed6174911a6ff3d60540dfd4844201974602551e10e9e87ab143d81e", // Fast 7B model, NOT a thinking model
-        input: {
-          prompt: `${systemPrompt}\n\nUser: ${userPrompt}\n\nAssistant:`,
-          max_tokens: 150, // Limit to 150 tokens for concise responses
-          temperature: 0.7,
-          top_p: 0.9,
-          repetition_penalty: 1.1,
-          stop_sequences: "\n\nUser:"
-        }
+        model: "meta-llama/llama-2-7b-chat", // Fast, reliable model for NSFW content
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user", 
+            content: userPrompt
+          }
+        ],
+        max_tokens: 150,
+        temperature: 0.7,
+        top_p: 0.9,
+        stream: false
       })
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Replicate API response:', errorText)
-      throw new Error(`Replicate API error: ${response.status} - ${errorText}`)
+      console.error('OpenRouter API response:', errorText)
+      throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
     }
 
-    const prediction = await response.json()
-    console.log('Replicate prediction created:', prediction.id)
+    const result = await response.json()
+    console.log('OpenRouter response received')
 
-    // Poll for completion with shorter timeout for reliability
-    let result = prediction
-    let attempts = 0
-    const maxAttempts = 20 // 20 seconds max wait (reduced for reliability)
-
-    while (result.status === 'starting' || result.status === 'processing') {
-      if (attempts >= maxAttempts) {
-        throw new Error('Response taking too long, please try again')
-      }
-      
-      // Faster polling initially, then slower
-      const delay = attempts < 5 ? 300 : attempts < 10 ? 800 : 1500
-      await new Promise(resolve => setTimeout(resolve, delay))
-      attempts++
-      
-      const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-        headers: {
-          'Authorization': `Token ${REPLICATE_API_TOKEN}`,
-        }
-      })
-      
-      if (!pollResponse.ok) {
-        throw new Error(`Polling error: ${pollResponse.status}`)
-      }
-      
-      result = await pollResponse.json()
-      console.log(`Poll attempt ${attempts}: ${result.status}`)
+    if (!result.choices || result.choices.length === 0) {
+      throw new Error('No response generated from OpenRouter')
     }
 
-    if (result.status === 'succeeded') {
-      const generatedText = Array.isArray(result.output) ? result.output.join('') : result.output || ''
-      
-      // Clean up the response
-      let cleanedResponse = generatedText
-        .replace(/^Assistant:\s*/i, '') // Remove "Assistant:" prefix
-        .replace(/\n\nUser:.*$/s, '') // Remove any trailing user prompt
-        .trim()
-      
-      const tokenCount = estimateTokenCount(cleanedResponse)
-      
-      console.log(`Generated response: ${tokenCount} tokens`)
-      
-      return {
-        success: true,
-        message: cleanedResponse,
-        tokenCount: tokenCount
-      }
-    } else {
-      throw new Error(`Prediction failed: ${result.error || 'Unknown error'}`)
+    const responseText = result.choices[0].message.content.trim()
+    
+    return {
+      success: true,
+      message: responseText,
+      tokenCount: result.usage?.total_tokens || responseText.split(' ').length
     }
 
-  } catch (error) {
-    console.error('Replicate API error:', error)
+  } catch (error: any) {
+    console.error('generateChatResponse error:', error)
     return {
       success: false,
-      error: error.message || 'Failed to generate chat response'
+      error: error.message
     }
   }
-}
-
-// Simple token estimation (rough approximation)
-function estimateTokenCount(text: string): number {
-  // Rough estimation: ~4 characters per token for English text
-  return Math.round(text.length / 4)
 }

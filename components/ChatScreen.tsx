@@ -178,8 +178,32 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   }, [modelName]);
 
   const sendMessage = async () => {
-    // Chat functionality completely disabled
-    return;
+    if (!inputMessage.trim()) return;
+
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: inputMessage.trim(),
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setIsLoading(true);
+
+    // Simple echo response after 1 second
+    setTimeout(() => {
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `You said: "${userMessage.content}"`,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+      setIsLoading(false);
+    }, 1000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -438,11 +462,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Chat functionality disabled for testing..."
+              placeholder={`Message ${modelName}...`}
               className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
               rows={1}
               style={{ minHeight: '48px', maxHeight: '120px' }}
-              disabled={true}
+              disabled={isLoading}
             />
             <button
               onClick={sendMessage}

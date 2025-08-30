@@ -227,6 +227,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       
     } catch (error) {
       console.error('Chat error:', error);
+      setError(`Chat failed: ${error.message}`);
       
       // Fallback to simple response if AI fails
       const fallbackMessage: Message = {

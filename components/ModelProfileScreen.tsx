@@ -95,15 +95,62 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
       return;
     }
 
+    const tokenCost = PRICING.PHOTOS[selectedPhotoType].tokens;
+    
     try {
-      // Here you would normally save to a database
-      // For now, we'll just show a success message
-      alert('Custom photo request submitted! We\'ll get back to you soon.');
+      setLoading(true);
+      
+      // First, submit the request and deduct tokens
+      const { data: requestId, error: submitError } = await supabase.rpc('submit_custom_photo_request', {
+        p_user_id: (await supabase.auth.getUser()).data.user?.id,
+        p_model_name: modelName,
+        p_user_email: userEmail,
+        p_photo_type: selectedPhotoType,
+        p_prompt: requestText,
+        p_token_cost: tokenCost
+      });
+
+      if (submitError) {
+        throw new Error(submitError.message);
+      }
+
+      // Call the image generation Edge Function
+      const response = await fetch('/functions/v1/generate-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: JSON.stringify({
+          prompt: requestText,
+          photoType: selectedPhotoType,
+          modelName: modelName,
+          userEmail: userEmail,
+          userId: (await supabase.auth.getUser()).data.user?.id,
+          requestId: requestId
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`🎉 Your ${PRICING.PHOTOS[selectedPhotoType].label} image has been generated successfully! Check your email for the final result.`);
+      } else {
+        throw new Error(result.error || 'Image generation failed');
+      }
+
       setShowCustomRequestForm(false);
       setRequestText('');
       setUserEmail('');
-    } catch (err) {
-      alert('Failed to submit request. Please try again.');
+      
+      // Refresh user's token balance
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Custom photo request error:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -391,9 +438,20 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
                     <div className="flex space-x-4">
                       <button 
                         onClick={handleCustomPhotoRequest}
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-full transition-colors"
+                        disabled={loading || userTokens < PRICING.PHOTOS[selectedPhotoType].tokens}
+                        className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-full transition-colors flex items-center space-x-2"
                       >
-                        Submit Request
+                        {loading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Generating...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Submit Request</span>
+                            <span className="text-purple-200">({PRICING.PHOTOS[selectedPhotoType].tokens} tokens)</span>
+                          </>
+                        )}
                       </button>
                       <button 
                         onClick={() => setShowCustomRequestForm(false)}

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ModelPersonality, PRICING, ChatMode } from '../types';
+import { supabase, BUCKET_NAME } from '../supabaseClient';
 import TokenBalance from './TokenBalance';
 
 interface Message {
@@ -32,6 +33,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   const [showTimeWarning, setShowTimeWarning] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [chatMode, setChatMode] = useState<ChatMode>('sfw');
+  const [modelImages, setModelImages] = useState<string[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imagesLoading, setImagesLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -41,6 +45,54 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Load SFW images for the model
+  useEffect(() => {
+    const loadModelImages = async () => {
+      setImagesLoading(true);
+      try {
+        const { data: files, error } = await supabase.storage
+          .from(BUCKET_NAME)
+          .list(modelName, {
+            limit: 100,
+            sortBy: { column: 'name', order: 'asc' }
+          });
+
+        if (error) {
+          console.error('Error loading model images:', error);
+          return;
+        }
+
+        const imageFiles = files?.filter(file => 
+          file.name.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/i)
+        ) || [];
+
+        const imageUrls = imageFiles.map(file => 
+          supabase.storage.from(BUCKET_NAME).getPublicUrl(`${modelName}/${file.name}`).data.publicUrl
+        );
+
+        setModelImages(imageUrls);
+        setCurrentImageIndex(0);
+      } catch (err) {
+        console.error('Error loading model images:', err);
+      } finally {
+        setImagesLoading(false);
+      }
+    };
+
+    loadModelImages();
+  }, [modelName]);
+
+  // Image rotation effect (4 seconds per image)
+  useEffect(() => {
+    if (modelImages.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentImageIndex(prev => (prev + 1) % modelImages.length);
+    }, 4000); // 4 seconds
+
+    return () => clearInterval(interval);
+  }, [modelImages.length]);
 
   // Timer effect for chat sessions
   useEffect(() => {
@@ -264,67 +316,69 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 text-white">
-      {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <button 
-              onClick={onBack}
-              className="flex items-center text-purple-400 hover:text-purple-300 transition-colors mr-4"
-            >
-              <span className="mr-2">←</span> Back
-            </button>
+    <div className="h-full flex bg-gray-900 text-white">
+      {/* Left Side - Chat Interface */}
+      <div className="w-1/2 flex flex-col border-r border-gray-700">
+        {/* Header */}
+        <div className="bg-gray-800 border-b border-gray-700 p-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center mr-3">
-                <span className="text-white font-bold">
-                  {modelName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">Chat with {modelName}</h1>
-                <div className="flex items-center space-x-2 text-sm text-gray-400">
-                  <span>Powered by Llama 3 70B</span>
-                  {chatSessionActive && (
-                    <>
-                      <span>•</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        chatMode === 'sfw' ? 'bg-blue-600 text-white' : 'bg-pink-600 text-white'
-                      }`}>
-                        {chatMode.toUpperCase()}
-                      </span>
-                    </>
-                  )}
+              <button 
+                onClick={onBack}
+                className="flex items-center text-purple-400 hover:text-purple-300 transition-colors mr-4"
+              >
+                <span className="mr-2">←</span> Back
+              </button>
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center mr-3">
+                  <span className="text-white font-bold">
+                    {modelName.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold">Chat with {modelName}</h1>
+                  <div className="flex items-center space-x-2 text-sm text-gray-400">
+                    <span>Powered by Llama 3 70B</span>
+                    {chatSessionActive && (
+                      <>
+                        <span>•</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          chatMode === 'sfw' ? 'bg-blue-600 text-white' : 'bg-pink-600 text-white'
+                        }`}>
+                          {chatMode.toUpperCase()}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
+            
+            <div className="flex items-center space-x-4">
+              <TokenBalance balance={userTokens} onClick={onBuyTokens} size="small" isCreator={isCreator} />
+              {chatSessionActive && (
+                <div className={`flex items-center space-x-2 px-3 py-1 rounded-full ${
+                  timeRemaining <= 5 * 60 ? 'bg-red-600' : timeRemaining <= 10 * 60 ? 'bg-yellow-600' : 'bg-green-600'
+                }`}>
+                  <span className="text-sm">⏱️</span>
+                  <span className="text-sm font-mono">
+                    {timeRemaining > 0 ? formatTimeRemaining(timeRemaining) : 'OVERTIME'}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <TokenBalance balance={userTokens} onClick={onBuyTokens} size="small" isCreator={isCreator} />
-            {chatSessionActive && (
-              <div className={`flex items-center space-x-2 px-3 py-1 rounded-full ${
-                timeRemaining <= 5 * 60 ? 'bg-red-600' : timeRemaining <= 10 * 60 ? 'bg-yellow-600' : 'bg-green-600'
-              }`}>
-                <span className="text-sm">⏱️</span>
-                <span className="text-sm font-mono">
-                  {timeRemaining > 0 ? formatTimeRemaining(timeRemaining) : 'OVERTIME'}
-                </span>
-              </div>
-            )}
-          </div>
+          {showTimeWarning && timeRemaining > 0 && (
+            <div className="mt-2 bg-yellow-600/20 border border-yellow-600 rounded-lg p-2">
+              <p className="text-yellow-300 text-sm">
+                ⚠️ Only 5 minutes remaining in your chat session
+              </p>
+            </div>
+          )}
         </div>
-        
-        {showTimeWarning && timeRemaining > 0 && (
-          <div className="mt-2 bg-yellow-600/20 border border-yellow-600 rounded-lg p-2">
-            <p className="text-yellow-300 text-sm">
-              ⚠️ Only 5 minutes remaining in your chat session
-            </p>
-          </div>
-        )}
-      </div>
 
-      {/* Messages Container */}
+        {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {!chatSessionActive && !sessionExpired && (
           <div className="flex flex-col items-center justify-center h-full space-y-6">
@@ -526,6 +580,69 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         <p className="text-xs text-gray-500 mt-2 text-center">
           Press Enter to send, Shift+Enter for new line
         </p>
+        </div>
+      </div>
+
+      {/* Right Side - Image Gallery */}
+      <div className="w-1/2 bg-black flex items-center justify-center relative overflow-hidden">
+        {imagesLoading ? (
+          <div className="flex flex-col items-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <p className="text-gray-400">Loading {modelName}'s photos...</p>
+          </div>
+        ) : modelImages.length > 0 ? (
+          <div className="relative w-full h-full">
+            <img 
+              src={modelImages[currentImageIndex]} 
+              alt={`${modelName} - Image ${currentImageIndex + 1}`}
+              className="w-full h-full object-cover transition-opacity duration-500"
+              style={{ 
+                objectPosition: 'center',
+                filter: 'brightness(0.95)' 
+              }}
+            />
+            
+            {/* Image overlay with model info */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-white text-xl font-bold">{modelName}</h3>
+                  <p className="text-gray-300 text-sm">SFW Gallery</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-white/70 text-sm">
+                    {currentImageIndex + 1} / {modelImages.length}
+                  </span>
+                  <div className="flex space-x-1">
+                    {modelImages.slice(0, Math.min(5, modelImages.length)).map((_, index) => (
+                      <div
+                        key={index}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === currentImageIndex % 5 ? 'bg-white' : 'bg-white/30'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Subtle rotation indicator */}
+            <div className="absolute top-4 right-4 bg-black/50 rounded-full p-2">
+              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center">
+              <span className="text-gray-400 text-2xl">📷</span>
+            </div>
+            <div>
+              <p className="text-gray-400 text-lg">No images available</p>
+              <p className="text-gray-500 text-sm">Upload some photos to see them here</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

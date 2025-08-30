@@ -56,9 +56,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Llama Chat error:', error)
+    console.error('Error stack:', error.stack)
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error.message,
+      details: error.stack
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -131,7 +133,7 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "ac808388e2e9d8ed35a5bf2eaa7d83f0ad53f9e3df31a42e4eb0a0c3249b3165", // Llama 3 70B Instruct (updated)
+        version: "fbfb20b472b2f3bdd101412a9f70a0ed4fc0ced78a77ff00970ee7a2383c575d", // Llama 3.1 8B Instruct (faster, more stable)
         input: {
           prompt: `${systemPrompt}\n\nUser: ${userPrompt}\n\nAssistant:`,
           max_tokens: 150, // Limit to 150 tokens for concise responses

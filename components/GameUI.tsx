@@ -193,13 +193,35 @@ const GameUI: React.FC<GameUIProps> = ({ round, score, onChoiceMade, bucketName,
         });
     }
 
-    // Call the parent callback to update game state
+    // Show winner info immediately
     setTimeout(() => {
         setWinnerInfo({ winner: chosenWinner, loser: chosenLoser });
-        onChoiceMade(chosenWinner);
     }, 400);
 
-  }, [images]);
+  }, [images, onChoiceMade]);
+  
+  // Handle winner display and auto-advance
+  useEffect(() => {
+    if (!winnerInfo) return;
+
+    // Start hiding animation after 2 seconds
+    const hideTimer = setTimeout(() => {
+      setIsHidingWinner(true);
+    }, 2000);
+
+    // Complete transition and advance to next round after animation
+    const advanceTimer = setTimeout(() => {
+      setWinnerInfo(null);
+      setIsHidingWinner(false);
+      setChoice(null);
+      onChoiceMade(winnerInfo.winner);
+    }, 2500);
+
+    return () => {
+      clearTimeout(hideTimer);
+      clearTimeout(advanceTimer);
+    };
+  }, [winnerInfo, onChoiceMade]);
   
   useEffect(() => {
     if (!winnerInfo || !IS_CONFIGURED) return;

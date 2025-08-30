@@ -1,9 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log('Chat API called:', req.method);
+  console.log('=== CHAT API CALLED ===');
+  console.log('Method:', req.method);
+  console.log('Headers:', req.headers);
   
   if (req.method !== 'POST') {
+    console.log('Method not allowed:', req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -68,7 +71,7 @@ When the user pushes beyond what's allowed at their ACCESS_LEVEL:
         'X-Title': 'FanVue Companion Chat'
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-2-7b-chat",
+        model: "openai/gpt-3.5-turbo",
         messages: [
           {
             role: "system",
@@ -106,9 +109,12 @@ When the user pushes beyond what's allowed at their ACCESS_LEVEL:
 
   } catch (error: any) {
     console.error('Chat API error:', error);
+    console.error('Full error details:', JSON.stringify(error, null, 2));
     res.status(500).json({
       success: false,
-      error: error.message || 'Chat generation failed'
+      error: error.message || 'Chat generation failed',
+      details: error.stack,
+      timestamp: new Date().toISOString()
     });
   }
 }

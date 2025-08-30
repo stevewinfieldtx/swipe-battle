@@ -21,51 +21,63 @@ export default async function handler(req, res) {
       throw new Error('OpenRouter API key not configured in Vercel');
     }
 
-    // Call OpenRouter for real AI responses
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://model-wars.com',
-        'X-Title': 'Model Wars Chat'
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are ${modelName}, a friendly virtual companion. Keep responses under 150 tokens. Be flirty and engaging.`
-          },
-          {
-            role: "user", 
-            content: message
-          }
-        ],
-        max_tokens: 150,
-        temperature: 0.7
-      })
-    });
+    // Call OpenRouter with proper error handling
+    try {
+      const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://model-wars.com',
+          'X-Title': 'Model Wars Chat'
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: `You are ${modelName}, a friendly virtual companion. Keep responses under 150 tokens. Be flirty and engaging.`
+            },
+            {
+              role: "user", 
+              content: message
+            }
+          ],
+          max_tokens: 150,
+          temperature: 0.7
+        })
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenRouter error response:', errorText);
-      throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+      if (!openRouterResponse.ok) {
+        const errorText = await openRouterResponse.text();
+        console.error('OpenRouter API error:', {
+          status: openRouterResponse.status,
+          statusText: openRouterResponse.statusText,
+          body: errorText
+        });
+        throw new Error(`OpenRouter failed: ${openRouterResponse.status}`);
+      }
+
+      const result = await openRouterResponse.json();
+      console.log('OpenRouter success:', result);
+      
+      const aiResponse = result.choices[0].message.content.trim();
+
+      return res.status(200).json({
+        success: true,
+        response: aiResponse
+      });
+
+    } catch (openRouterError) {
+      console.error('OpenRouter call failed:', openRouterError);
+      
+      // Return error details for debugging
+      return res.status(500).json({
+        success: false,
+        error: `OpenRouter failed: ${openRouterError.message}`,
+        details: openRouterError.toString()
+      });
     }
-
-    const result = await response.json();
-    console.log('OpenRouter response:', JSON.stringify(result, null, 2));
-    
-    if (!result.choices || !result.choices[0] || !result.choices[0].message) {
-      throw new Error('Invalid response format from OpenRouter');
-    }
-    
-    const aiResponse = result.choices[0].message.content.trim();
-
-    return res.status(200).json({
-      success: true,
-      response: aiResponse
-    });
 
   } catch (error) {
     console.error('Simple chat error:', error);

@@ -126,35 +126,61 @@ function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: s
 
 async function generateImageWithRunware(prompt: string, photoType: string) {
   try {
-    // Import Runware SDK (using dynamic import for Deno Edge Functions)
-    const { Runware } = await import('https://esm.sh/@runware/sdk-js@latest')
+    // Import Runware SDK modules (matching your working script)
+    const { Runware, IImageInference } = await import('https://esm.sh/@runware/sdk-js@latest')
     
-    // Initialize Runware SDK
+    // Initialize Runware client
     const runware = new Runware({ apiKey: RUNWARE_API_KEY })
+    
+    // Connect to Runware (like your script)
+    await runware.connect()
+    console.log('Successfully connected to Runware')
 
-    // Generate image using official SDK
-    const images = await runware.requestImages({
-      positivePrompt: prompt,
+    // Create payload using IImageInference (matching your script exactly)
+    const payload = new IImageInference({
       model: RUNWARE_MODEL,
-      width: 512,
+      positivePrompt: prompt,
       height: 768, // Portrait orientation for model photos
+      width: 512,
+      steps: 28, // Using your script's step count
+      scheduler: "DPMSolverSinglestepScheduler", // Default from your script
       numberResults: 1,
-      steps: 50,
-      CFGScale: 7.5,
-      seed: Math.floor(Math.random() * 1000000), // Random seed for variety
-      // Add safety filter for SFW content
-      ...(photoType === 'sfw' && { safetyChecker: true })
     })
 
-    if (images && images.length > 0 && images[0].imageURL) {
+    console.log(`Calling imageInference with model: ${RUNWARE_MODEL}`)
+    
+    // Call imageInference exactly like your script
+    const results = await runware.imageInference({ requestImage: payload })
+    
+    console.log('Runware API response received:', results ? 'success' : 'null')
+
+    // Handle response exactly like your script
+    if (results && results[0] && 
+        hasattr(results[0], "imageURL") && 
+        results[0].imageURL) {
+      
+      const imageUrl = results[0].imageURL
+      console.log(`Image generated successfully: ${imageUrl.substring(0, 60)}...`)
+      
       return {
         success: true,
-        imageUrl: images[0].imageURL
+        imageUrl: imageUrl
       }
     } else {
+      let errorDetail = "Malformed response or no imageURL."
+      if (results && results[0]) {
+        if (results[0].error) {
+          errorDetail = `API Error: ${results[0].error}`
+        } else if (results[0].message) {
+          errorDetail = `API Message: ${results[0].message}`
+        }
+      } else if (!results) {
+        errorDetail = "API returned no results."
+      }
+      
       return {
         success: false,
-        error: 'No image generated or invalid response from Runware'
+        error: errorDetail
       }
     }
 
@@ -165,4 +191,9 @@ async function generateImageWithRunware(prompt: string, photoType: string) {
       error: error.message || 'Failed to generate image with Runware SDK'
     }
   }
+}
+
+// Helper function to check if object has property (like Python's hasattr)
+function hasattr(obj: any, prop: string): boolean {
+  return obj && typeof obj === 'object' && prop in obj
 }

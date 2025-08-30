@@ -28,12 +28,16 @@ serve(async (req) => {
       prompt: prompt.substring(0, 50), 
       modelName, 
       accessLevel,
-      userId: userId?.substring(0, 8) 
+      userId: userId?.substring(0, 8),
+      hasPersonaJson: !!personaJson,
+      personaKeys: personaJson ? Object.keys(personaJson) : []
     })
 
     if (!REPLICATE_API_TOKEN) {
       throw new Error('REPLICATE_API_TOKEN not configured')
     }
+
+    console.log('About to call Replicate API...')
 
     // Build the FanVue system prompt with personality
     const systemPrompt = buildFanVueSystemPrompt(accessLevel, personaJson, modelName)
@@ -133,7 +137,7 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "lucataco/llama-2-13b-chat", // Better for adult content without heavy restrictions
+        version: "a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5", // Use specific version hash
         input: {
           prompt: `${systemPrompt}\n\nUser: ${userPrompt}\n\nAssistant:`,
           max_tokens: 150, // Limit to 150 tokens for concise responses
@@ -146,7 +150,9 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
     })
 
     if (!response.ok) {
-      throw new Error(`Replicate API error: ${response.status}`)
+      const errorText = await response.text()
+      console.error('Replicate API response:', errorText)
+      throw new Error(`Replicate API error: ${response.status} - ${errorText}`)
     }
 
     const prediction = await response.json()

@@ -137,7 +137,7 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5", // Use specific version hash
+        version: "meta/llama-2-7b-chat:8e6975e5ed6174911a6ff3d60540dfd4844201974602551e10e9e87ab143d81e", // Fast 7B model, NOT a thinking model
         input: {
           prompt: `${systemPrompt}\n\nUser: ${userPrompt}\n\nAssistant:`,
           max_tokens: 150, // Limit to 150 tokens for concise responses
@@ -158,10 +158,10 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
     const prediction = await response.json()
     console.log('Replicate prediction created:', prediction.id)
 
-    // Poll for completion with optimized timing
+    // Poll for completion with shorter timeout for reliability
     let result = prediction
     let attempts = 0
-    const maxAttempts = 30 // 30 seconds max wait
+    const maxAttempts = 20 // 20 seconds max wait (reduced for reliability)
 
     while (result.status === 'starting' || result.status === 'processing') {
       if (attempts >= maxAttempts) {
@@ -169,7 +169,7 @@ async function generateChatResponse(systemPrompt: string, userPrompt: string) {
       }
       
       // Faster polling initially, then slower
-      const delay = attempts < 5 ? 500 : attempts < 15 ? 1000 : 2000
+      const delay = attempts < 5 ? 300 : attempts < 10 ? 800 : 1500
       await new Promise(resolve => setTimeout(resolve, delay))
       attempts++
       

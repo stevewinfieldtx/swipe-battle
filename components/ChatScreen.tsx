@@ -192,56 +192,18 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     setIsLoading(true);
     setError(null);
 
-    try {
-      // Map chat mode to access level
-      const accessLevel = chatMode === 'nsfw' ? 'MONTHLY' : 'FREE';
-      
-      // Use existing Supabase Edge Function that we know works
-      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/llama-chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          prompt: userMessage.content,
-          modelName: modelName,
-          accessLevel: accessLevel,
-          personaJson: personality
-        })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: result.response,
-          timestamp: new Date()
-        };
-        
-        setMessages(prev => [...prev, aiMessage]);
-      } else {
-        throw new Error(result.error || 'Failed to generate response');
-      }
-      
-    } catch (error) {
-      console.error('Chat error:', error);
-      setError(`Chat failed: ${error.message}`);
-      
-      // Fallback to simple response if AI fails
-      const fallbackMessage: Message = {
+    // Simple test response - no external APIs for now
+    setTimeout(() => {
+      const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I'm having trouble connecting right now, but I'm here! Can you tell me more about what's on your mind?",
+        content: `Hey! You said: "${userMessage.content}". I'm ${modelName} and I'm working! This is just a test response to make sure chat works.`,
         timestamp: new Date()
       };
       
-      setMessages(prev => [...prev, fallbackMessage]);
-      setError('AI service temporarily unavailable');
-    } finally {
+      setMessages(prev => [...prev, aiMessage]);
       setIsLoading(false);
-    }
+    }, 1000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

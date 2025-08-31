@@ -9,6 +9,7 @@ import AuthScreen from './components/AuthScreen';
 import SubscriptionModal from './components/SubscriptionModal';
 import StatsScreen from './components/StatsScreen.tsx';
 import AdminScreen from './components/AdminScreen';
+import AdminConfigScreen from './components/AdminConfigScreen';
 import ModelProfileScreen from './components/ModelProfileScreen';
 import ChatScreen from './components/ChatScreen';
 import ModelListScreen from './components/ModelListScreen';
@@ -31,8 +32,8 @@ const ConfigurationErrorScreen: React.FC = () => (
     </div>
 );
 
-const StartScreen: React.FC<{ onStart: (bucket: string) => void; onShowStats: () => void; onShowAdmin: () => void; onShowSubscription: () => void; onShowModelList: () => void; isPremium: boolean; onSignOut: () => void; isCreator: boolean }> = 
-({ onStart, onShowStats, onShowAdmin, onShowSubscription, onShowModelList, isPremium, onSignOut, isCreator }) => {
+const StartScreen: React.FC<{ onStart: (bucket: string) => void; onShowStats: () => void; onShowAdmin: () => void; onShowAdminConfig: () => void; onShowSubscription: () => void; onShowModelList: () => void; isPremium: boolean; onSignOut: () => void; isCreator: boolean }> = 
+({ onStart, onShowStats, onShowAdmin, onShowAdminConfig, onShowSubscription, onShowModelList, isPremium, onSignOut, isCreator }) => {
     return (
         <div className="flex flex-col items-center justify-center h-full text-white p-4 animate-fade-in">
           <div className="text-center mb-10">
@@ -51,6 +52,9 @@ const StartScreen: React.FC<{ onStart: (bucket: string) => void; onShowStats: ()
               <button onClick={onShowModelList} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">Model Directory</button>
             )}
             <button onClick={onShowAdmin} className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-colors">Creator Studio</button>
+            {isCreator && (
+              <button onClick={onShowAdminConfig} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">Admin Config</button>
+            )}
           </div>
           <button onClick={onSignOut} className="absolute top-4 right-4 bg-gray-700/50 hover:bg-gray-600/80 text-white text-xs py-2 px-4 rounded-full transition-colors">
             Sign Out
@@ -288,6 +292,8 @@ const App: React.FC = () => {
         return <StatsScreen onBack={() => setGameState('start')} onShowModelProfile={handleShowModelProfile} />;
       case 'admin':
         return <AdminScreen onBack={() => setGameState('start')} />;
+      case 'adminConfig':
+        return <AdminConfigScreen onBack={() => setGameState('start')} />;
       case 'modelProfile':
         return <ModelProfileScreen 
           modelName={selectedModel!} 
@@ -319,6 +325,7 @@ const App: React.FC = () => {
             onSignOut={handleSignOut}
             onShowStats={() => setGameState('stats')}
             onShowAdmin={() => setGameState('admin')}
+            onShowAdminConfig={() => setGameState('adminConfig')}
             onShowModelList={handleShowModelList}
             isCreator={isCreator}
           />

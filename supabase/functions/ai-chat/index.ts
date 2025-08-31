@@ -24,7 +24,7 @@ serve(async (req) => {
       throw new Error('OpenRouter API key not configured')
     }
 
-    // Call OpenRouter API
+    // Call OpenRouter API with fixed model (WizardLM-2 8x22B)
     const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -34,7 +34,7 @@ serve(async (req) => {
         'X-Title': 'Swipe Battle Chat'
       },
       body: JSON.stringify({
-        model: modelName,
+        model: 'microsoft/wizardlm-2-8x22b',
         messages: [
           {
             role: "system",

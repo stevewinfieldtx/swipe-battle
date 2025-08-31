@@ -60,6 +60,7 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
     loadSystemPrompt();
     loadModels();
     loadAvailableLLMs();
+    loadSavedLLMConfig();
   }, []);
 
   const loadAvailableLLMs = async () => {
@@ -315,6 +316,26 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
     setSelectedModel('new-model');
   };
 
+  const loadSavedLLMConfig = async () => {
+    try {
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=get-llm-config`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data?.success && data?.config) {
+        if (data.config.model) setSelectedLLM(data.config.model);
+        if (typeof data.config.temperature === 'number') setTemperature(data.config.temperature);
+        if (typeof data.config.maxTokens === 'number') setMaxTokens(data.config.maxTokens);
+      }
+    } catch (e) {
+      console.error('Failed to load saved LLM config:', e);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-900 text-white">
       <div className="p-6 border-b border-gray-700">
@@ -485,6 +506,22 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
                  {llmLoading && <span className="ml-2 text-yellow-400">(Loading models...)</span>}
                </div>
              </div>
+
+             {!llmLoading && availableLLMs.length > 0 && (
+               <div className="mb-6">
+                 <label className="block text-sm mb-2 text-gray-300">Choose an LLM</label>
+                 <select
+                   value={selectedLLM}
+                   onChange={(e) => setSelectedLLM(e.target.value)}
+                   className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white"
+                 >
+                   {availableLLMs.map((m) => (
+                     <option key={m.id} value={m.id}>{m.name} — {m.provider}</option>
+                   ))}
+                 </select>
+                 <p className="text-xs text-gray-500 mt-2 break-all">Model ID: {selectedLLM}</p>
+               </div>
+             )}
 
              {llmLoading ? (
                <div className="flex items-center justify-center py-12">

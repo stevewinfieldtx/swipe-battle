@@ -56,8 +56,16 @@ export const PRICING = {
     nude: { tokens: 4, price: 1.00, label: 'Nude' }
   },
   CHAT: {
-    sfw: { tokens: 15, price: 3.75, minutes: 30, label: 'SFW Chat' },
-    nsfw: { tokens: 20, price: 5.00, minutes: 30, label: 'NSFW Chat' }
+    // Free entry session: 15 minutes, no tokens required
+    sfw: { tokens: 0, price: 0.00, minutes: 15, label: 'SFW Chat (Free 15 min)' },
+    nsfw: { tokens: 0, price: 0.00, minutes: 15, label: 'NSFW Chat (Free 15 min)' }
+  },
+  PASSES: {
+    // Day pass for SFW chat
+    sfw_day: { tokens: 4, price: 1.00, durationHours: 24, label: 'SFW 24h Pass' },
+    // Subscriptions (billing handled externally)
+    sfw_month: { tokens: 0, price: 5.00, subscription: true, label: 'SFW Monthly Unlimited' },
+    nsfw_month: { tokens: 0, price: 10.00, subscription: true, label: 'NSFW Monthly Unlimited' }
   }
 } as const;
 

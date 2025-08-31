@@ -234,7 +234,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
 
     // If the user is asking for a selfie/picture, offer custom image flow
     const text = userMessage.content.toLowerCase();
-    const wantsImage = /(selfie|send (me )?(a )?(pic|photo|picture)|take (a )?(selfie|picture|photo)|can i get (a )?(pic|photo|picture))/i.test(text);
+    const mentionsImage = /(selfie|pic|picture|photo|image|snapshot)/i.test(text);
+    const asksForIt = /(s?end|share|show|take|snap|dm|post|give|get|see|can|could|will|would|may|please|pls)/i.test(text);
+    const wantsImage = mentionsImage && (asksForIt || text.includes('?'));
     if (wantsImage) {
       const assistantOffer: Message = {
         id: (Date.now() + 1).toString(),

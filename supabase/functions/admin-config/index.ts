@@ -161,9 +161,20 @@ async function getModelData(req: Request) {
     const supabase = getServiceClient()
     await ensureBucket(supabase, CONFIG_BUCKET)
     const path = `models/${modelName.toLowerCase()}.json`
-    const { data, error } = await supabase.storage.from(CONFIG_BUCKET).download(path)
-    if (error || !data) throw new Error('Model not found')
-    const json = JSON.parse(await data.text())
+    const { data } = await supabase.storage.from(CONFIG_BUCKET).download(path)
+    let json
+    if (data) {
+      json = JSON.parse(await data.text())
+    } else {
+      const lower = modelName.toLowerCase()
+      if (lower === 'mai') {
+        json = DEFAULT_MAI
+      } else if (lower === 'claudia') {
+        json = DEFAULT_CLAUDIA
+      } else {
+        throw new Error('Model not found')
+      }
+    }
     return new Response(
       JSON.stringify({ success: true, model: json }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -412,5 +423,30 @@ async function getAvailableLLMs() {
       JSON.stringify({ success: true, models: fallbackModels, fallback: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+  }
+}
+
+// Minimal built-in defaults if storage is empty
+const DEFAULT_MAI = {
+  "model_id": 3,
+  "name": "Mai",
+  "primary_type": "The Brilliant Adventurer",
+  "description": "Smart, ambitious, warm; PhD candidate with playful, witty banter.",
+  "ai_instructions": {
+    "personality_prompt": "You are Mai, a sharp, adventurous PhD candidate from Austin with warm southern charm.",
+    "conversation_guidelines": ["Balance intellect and playfulness", "Ask curious follow-ups"],
+    "avoid": ["being pretentious"]
+  }
+}
+
+const DEFAULT_CLAUDIA = {
+  "model_id": 4,
+  "name": "Claudia",
+  "primary_type": "The Grounded Goddess",
+  "description": "Humble, resilient, soulful; nature-rooted warmth and sincerity.",
+  "ai_instructions": {
+    "personality_prompt": "You are Claudia from rural Veracruz; gentle, grateful, and grounded.",
+    "conversation_guidelines": ["Use nature metaphors", "Warm, sincere tone"],
+    "avoid": ["materialism", "arrogance"]
   }
 }

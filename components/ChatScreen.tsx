@@ -197,7 +197,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       const response = await supabase.functions.invoke('ai-chat', {
         body: {
           message: userMessage.content,
-          modelName: modelName
+          modelName: modelName,
+          // Provide persona JSON and access level so backend can build proper system prompt
+          persona: personality || null,
+          accessLevel: chatMode === 'sfw' ? 'FREE' : 'MONTHLY'
         }
       });
 

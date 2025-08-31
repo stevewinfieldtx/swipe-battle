@@ -8,6 +8,8 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  kind?: 'text' | 'image';
+  imageUrl?: string;
 }
 
 interface ChatScreenProps {
@@ -37,6 +39,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imagesLoading, setImagesLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [pendingImageOffer, setPendingImageOffer] = useState<{ prompt: string } | null>(null);
+  const [selectedPhotoTypeChat, setSelectedPhotoTypeChat] = useState<'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude'>('sfw');
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -156,15 +161,22 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
 
 
 
-  // Load personality profile on mount
+  // Load personality profile on mount (via admin-config function)
   useEffect(() => {
     const loadPersonality = async () => {
       try {
-        const response = await fetch(`/models/${modelName.toLowerCase()}.json`);
-        if (response.ok) {
-          const personalityData = await response.json();
-          setPersonality(personalityData);
-          // Don't set initial greeting - let user start the chat
+        const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=get-model-data`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabase.supabaseKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ modelName })
+        });
+        if (!response.ok) throw new Error('Failed to load model persona');
+        const data = await response.json();
+        if (data?.success && data?.model) {
+          setPersonality(data.model);
         }
       } catch (err) {
         console.error('Failed to load personality:', err);
@@ -192,15 +204,34 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     setInputMessage('');
     setIsLoading(true);
 
+    // If the user is asking for a selfie/picture, offer custom image flow
+    const text = userMessage.content.toLowerCase();
+    const wantsImage = /(selfie|send (me )?(a )?(pic|photo|picture)|take (a )?(selfie|picture|photo)|can i get (a )?(pic|photo|picture))/i.test(text);
+    if (wantsImage) {
+      const assistantOffer: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `I can send a fresh photo. Choose a type below and confirm. Costs — SFW: ${PRICING.PHOTOS.sfw.tokens}, Bikini: ${PRICING.PHOTOS.bikini.tokens}, Lingerie: ${PRICING.PHOTOS.lingerie.tokens}, Topless: ${PRICING.PHOTOS.topless.tokens}, Nude: ${PRICING.PHOTOS.nude.tokens} tokens.`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, assistantOffer]);
+      setPendingImageOffer({ prompt: userMessage.content });
+      setIsLoading(false);
+      return;
+    }
+
     // Call Supabase Edge Function for AI chat
     try {
+      // Include a short rolling history so the model maintains context
+      const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }));
       const response = await supabase.functions.invoke('ai-chat', {
         body: {
           message: userMessage.content,
           modelName: modelName,
           // Provide persona JSON and access level so backend can build proper system prompt
           persona: personality || null,
-          accessLevel: chatMode === 'sfw' ? 'FREE' : 'MONTHLY'
+          accessLevel: chatMode === 'sfw' ? 'FREE' : 'MONTHLY',
+          history
         }
       });
 
@@ -236,6 +267,58 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     }
     
     setIsLoading(false);
+  };
+
+  const confirmCustomImage = async () => {
+    if (!pendingImageOffer) return;
+    const type = selectedPhotoTypeChat;
+    const cost = PRICING.PHOTOS[type].tokens;
+
+    if (!isCreator && userTokens < cost) {
+      setError(`You need ${cost} tokens for a ${PRICING.PHOTOS[type].label} photo.`);
+      return;
+    }
+
+    try {
+      setIsGeneratingImage(true);
+      if (!isCreator) {
+        onSpendTokens(cost, `Custom ${PRICING.PHOTOS[type].label} photo from ${modelName}`);
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-image', {
+        body: {
+          prompt: pendingImageOffer.prompt,
+          photoType: type,
+          modelName: modelName,
+          userEmail: '',
+          userId: null
+        }
+      });
+
+      if (error) throw new Error(error.message || 'Image generation failed');
+      if (!data?.success || !data?.imageUrl) throw new Error(data?.error || 'Image generation failed');
+
+      const imgMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        role: 'assistant',
+        content: `Here you go — a new ${PRICING.PHOTOS[type].label} shot.`,
+        timestamp: new Date(),
+        kind: 'image',
+        imageUrl: data.imageUrl
+      };
+      setMessages(prev => [...prev, imgMessage]);
+    } catch (e: any) {
+      const failMsg: Message = {
+        id: (Date.now() + 3).toString(),
+        role: 'assistant',
+        content: `Image failed: ${e.message || 'please try again shortly.'}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, failMsg]);
+    } finally {
+      setIsGeneratingImage(false);
+      setPendingImageOffer(null);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -437,9 +520,23 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
                   </div>
                 )}
                 <div className="flex-1">
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {message.content}
-                  </p>
+                  {message.kind === 'image' && message.imageUrl ? (
+                    <div className="space-y-2">
+                      <img src={message.imageUrl} alt="Generated" className="rounded-lg border border-gray-600" />
+                      <p className="text-xs text-gray-300">{message.content}</p>
+                      <a
+                        href={message.imageUrl}
+                        download={`${modelName}_${Date.now()}.webp`}
+                        className="inline-block text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
+                      >
+                        Download WebP
+                      </a>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {message.content}
+                    </p>
+                  )}
                   <p className="text-xs opacity-70 mt-2">
                     {formatTime(message.timestamp)}
                   </p>

@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, modelName, persona, accessLevel } = await req.json()
+    const { message, modelName, persona, accessLevel, history } = await req.json()
     
     console.log('AI Chat request:', { message: message?.substring(0, 50), modelName })
     
@@ -50,7 +50,34 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
     const personaJson = persona ?? null
     const level = typeof accessLevel === 'string' ? accessLevel : 'FREE'
 
-    // Call OpenRouter API with fixed model (WizardLM-2 8x22B)
+    // Read LLM config and system prompt from Supabase Storage (config bucket)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const CONFIG_BUCKET = 'config'
+    let modelId = 'microsoft/wizardlm-2-8x22b'
+    let temperature = 0.7
+    let maxTokens = 150
+    let adminSystemPrompt = ''
+
+    try {
+      if (!supabaseUrl || !serviceRoleKey) throw new Error('no supabase env')
+      const sb = createClient(supabaseUrl, serviceRoleKey)
+      const { data: llmObj } = await sb.storage.from(CONFIG_BUCKET).download('llm.json')
+      if (llmObj) {
+        const cfg = JSON.parse(await llmObj.text())
+        modelId = cfg.model || modelId
+        temperature = typeof cfg.temperature === 'number' ? cfg.temperature : temperature
+        maxTokens = typeof cfg.maxTokens === 'number' ? cfg.maxTokens : maxTokens
+      }
+      const { data: promptObj } = await sb.storage.from(CONFIG_BUCKET).download('system-prompt.txt')
+      if (promptObj) {
+        adminSystemPrompt = await promptObj.text()
+      }
+    } catch (_) {
+      // use defaults silently
+    }
+
+    // Call OpenRouter API with configured model
     const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -60,16 +87,17 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
         'X-Title': 'Swipe Battle Chat'
       },
       body: JSON.stringify({
-        model: 'microsoft/wizardlm-2-8x22b',
+        model: modelId,
         messages: [
           {
             role: "system",
-            content: `${fanvueSystemPrompt}\n\nPERSONA_JSON (strictly follow): ${personaJson ? JSON.stringify(personaJson) : '{"name":"'+modelName+'"}'}\nMODEL_NAME: ${modelName}\nACCESS_LEVEL: ${level}\nInstructions: Stay fully in character as defined by PERSONA_JSON and ACCESS_LEVEL. Keep replies under 150 tokens.`
+            content: `${adminSystemPrompt ? adminSystemPrompt + '\n\n' : ''}${fanvueSystemPrompt}\n\nPERSONA_JSON (strictly follow): ${personaJson ? JSON.stringify(personaJson) : '{"name":"'+modelName+'"}'}\nMODEL_NAME: ${modelName}\nACCESS_LEVEL: ${level}\nInstructions: Stay fully in character as defined by PERSONA_JSON and ACCESS_LEVEL. Keep replies under ${maxTokens} tokens.`
           },
+          ...(Array.isArray(history) ? history.slice(-10) : []),
           { role: "user", content: message }
         ],
-        max_tokens: 150,
-        temperature: 0.7
+        max_tokens: maxTokens,
+        temperature
       })
     })
 

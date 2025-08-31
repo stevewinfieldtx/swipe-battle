@@ -1,8 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+const CONFIG_BUCKET = 'config'
+
+function getServiceClient() {
+  const url = Deno.env.get('SUPABASE_URL')
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!url || !serviceRoleKey) throw new Error('Supabase environment not configured')
+  return createClient(url, serviceRoleKey)
+}
+
+async function ensureBucket(supabase: ReturnType<typeof createClient>, bucket: string) {
+  // Try to create bucket; ignore error if exists
+  const { error } = await supabase.storage.createBucket(bucket, { public: true })
+  if (error && !String(error.message || '').toLowerCase().includes('already exists')) {
+    // Non-fatal: bucket may already exist with different options
+    console.log('ensureBucket:', error.message)
+  }
 }
 
 serve(async (req) => {
@@ -32,6 +51,8 @@ serve(async (req) => {
         return await deleteModel(req)
       case 'update-llm-config':
         return await updateLLMConfig(req)
+      case 'get-llm-config':
+        return await getLLMConfig()
       case 'get-available-llms':
         return await getAvailableLLMs()
       default:
@@ -51,15 +72,19 @@ serve(async (req) => {
 
 async function getSystemPrompt() {
   try {
-    // Read the current ai-chat function to extract the system prompt
-    const aiChatPath = '/opt/render/project/src/supabase/functions/ai-chat/index.ts'
-    
-    // For now, return the current hardcoded prompt
-    // In a real implementation, you'd read from the file or a database
-    const currentPrompt = 'You are {modelName}, a friendly virtual companion. Keep responses under 150 tokens. Be engaging and conversational while staying in character.'
-    
+    const supabase = getServiceClient()
+    await ensureBucket(supabase, CONFIG_BUCKET)
+    const { data, error } = await supabase.storage.from(CONFIG_BUCKET).download('system-prompt.txt')
+    if (error || !data) {
+      const fallback = 'You are {modelName}, a friendly virtual companion. Keep responses under 150 tokens. Be engaging and conversational while staying in character.'
+      return new Response(
+        JSON.stringify({ success: true, prompt: fallback, fallback: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const text = await data.text()
     return new Response(
-      JSON.stringify({ success: true, prompt: currentPrompt }),
+      JSON.stringify({ success: true, prompt: text }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
@@ -74,16 +99,10 @@ async function updateSystemPrompt(req: Request) {
     if (!prompt || typeof prompt !== 'string') {
       throw new Error('Invalid prompt provided')
     }
-    
-    // Store the prompt in Deno KV or environment variable
-    // For now, we'll simulate success
-    console.log('System prompt would be updated to:', prompt)
-    
-    // In a real implementation, you would:
-    // 1. Update the ai-chat function file
-    // 2. Redeploy the function
-    // 3. Or store in a database/KV store and modify ai-chat to read from there
-    
+    const supabase = getServiceClient()
+    await ensureBucket(supabase, CONFIG_BUCKET)
+    const { error } = await supabase.storage.from(CONFIG_BUCKET).upload('system-prompt.txt', new Blob([prompt], { type: 'text/plain' }), { upsert: true, contentType: 'text/plain' })
+    if (error) throw error
     return new Response(
       JSON.stringify({ success: true, message: 'System prompt updated successfully' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -95,21 +114,34 @@ async function updateSystemPrompt(req: Request) {
 
 async function getModels() {
   try {
-    // In a real implementation, you'd read from the file system or database
-    // For now, return mock data based on known models
-    const models = [
-      {
-        name: 'Claudia',
-        primary_type: 'The Grounded Goddess',
-        description: 'A resilient and soulful woman with a deep connection to the earth'
-      },
-      {
-        name: 'Mai',
-        primary_type: 'Character',
-        description: 'Another character model'
+    const supabase = getServiceClient()
+    await ensureBucket(supabase, CONFIG_BUCKET)
+    const { data: files, error } = await supabase.storage.from(CONFIG_BUCKET).list('models', { limit: 100 })
+    if (error) throw error
+    const models = [] as any[]
+    if (files) {
+      for (const f of files) {
+        if (!f.name.toLowerCase().endsWith('.json')) continue
+        const path = `models/${f.name}`
+        const { data } = await supabase.storage.from(CONFIG_BUCKET).download(path)
+        if (data) {
+          try {
+            const json = JSON.parse(await data.text())
+            models.push({
+              name: json.name || f.name.replace(/\.json$/i, ''),
+              primary_type: json.primary_type || 'Character',
+              description: json.description || ''
+            })
+          } catch (_) {
+            models.push({ name: f.name.replace(/\.json$/i, ''), primary_type: 'Character', description: '' })
+          }
+        }
       }
-    ]
-    
+    }
+    if (models.length === 0) {
+      models.push({ name: 'Claudia', primary_type: 'Character', description: 'Default character' })
+      models.push({ name: 'Mai', primary_type: 'Character', description: 'Default character' })
+    }
     return new Response(
       JSON.stringify({ success: true, models }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -126,43 +158,14 @@ async function getModelData(req: Request) {
     if (!modelName) {
       throw new Error('Model name is required')
     }
-    
-    // Mock model data - in reality, you'd read from the JSON file
-    const mockModelData = {
-      model_id: 4,
-      name: modelName.charAt(0).toUpperCase() + modelName.slice(1),
-      age: 25,
-      ethnicity: "unknown",
-      origin: "Unknown location",
-      big_five: {
-        openness: 70,
-        conscientiousness: 90,
-        extraversion: 60,
-        agreeableness: 95,
-        neuroticism: 15
-      },
-      primary_type: "Character Type",
-      description: "Character description goes here",
-      personality_traits: {
-        core_traits: ["trait1", "trait2"],
-        communication_style: "communication style",
-        interests: ["interest1", "interest2"],
-        profession: "profession",
-        values: ["value1", "value2"],
-        humor_type: "humor type"
-      },
-      ai_instructions: {
-        personality_prompt: `You are ${modelName}, a virtual companion.`,
-        conversation_guidelines: [
-          "Be engaging",
-          "Stay in character"
-        ],
-        avoid: ["being rude"]
-      }
-    }
-    
+    const supabase = getServiceClient()
+    await ensureBucket(supabase, CONFIG_BUCKET)
+    const path = `models/${modelName.toLowerCase()}.json`
+    const { data, error } = await supabase.storage.from(CONFIG_BUCKET).download(path)
+    if (error || !data) throw new Error('Model not found')
+    const json = JSON.parse(await data.text())
     return new Response(
-      JSON.stringify({ success: true, model: mockModelData }),
+      JSON.stringify({ success: true, model: json }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
@@ -182,14 +185,12 @@ async function updateModelData(req: Request) {
     if (typeof modelData !== 'object' || !modelData.name) {
       throw new Error('Invalid model data structure')
     }
-    
-    console.log(`Model ${modelName} would be updated with:`, modelData)
-    
-    // In a real implementation, you would:
-    // 1. Write to the JSON file in public/models/
-    // 2. Validate the data structure
-    // 3. Handle file system operations
-    
+    const supabase = getServiceClient()
+    await ensureBucket(supabase, CONFIG_BUCKET)
+    const path = `models/${modelName.toLowerCase()}.json`
+    const blob = new Blob([JSON.stringify(modelData, null, 2)], { type: 'application/json' })
+    const { error } = await supabase.storage.from(CONFIG_BUCKET).upload(path, blob, { upsert: true, contentType: 'application/json' })
+    if (error) throw error
     return new Response(
       JSON.stringify({ success: true, message: 'Model data updated successfully' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -206,14 +207,12 @@ async function createModel(req: Request) {
     if (!modelName || !modelData) {
       throw new Error('Model name and data are required')
     }
-    
-    console.log(`New model ${modelName} would be created with:`, modelData)
-    
-    // In a real implementation, you would:
-    // 1. Create a new JSON file in public/models/
-    // 2. Ensure the model name doesn't already exist
-    // 3. Validate the data structure
-    
+    const supabase = getServiceClient()
+    await ensureBucket(supabase, CONFIG_BUCKET)
+    const path = `models/${modelName.toLowerCase()}.json`
+    const blob = new Blob([JSON.stringify(modelData, null, 2)], { type: 'application/json' })
+    const { error } = await supabase.storage.from(CONFIG_BUCKET).upload(path, blob, { upsert: false, contentType: 'application/json' })
+    if (error) throw error
     return new Response(
       JSON.stringify({ success: true, message: 'Model created successfully' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -230,14 +229,11 @@ async function deleteModel(req: Request) {
     if (!modelName) {
       throw new Error('Model name is required')
     }
-    
-    console.log(`Model ${modelName} would be deleted`)
-    
-    // In a real implementation, you would:
-    // 1. Delete the JSON file from public/models/
-    // 2. Ensure the model exists before deletion
-    // 3. Handle any cleanup needed
-    
+    const supabase = getServiceClient()
+    await ensureBucket(supabase, CONFIG_BUCKET)
+    const path = `models/${modelName.toLowerCase()}.json`
+    const { error } = await supabase.storage.from(CONFIG_BUCKET).remove([path])
+    if (error) throw error
     return new Response(
       JSON.stringify({ success: true, message: 'Model deleted successfully' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -263,20 +259,39 @@ async function updateLLMConfig(req: Request) {
     if (maxTokens < 1 || maxTokens > 4000) {
       throw new Error('Max tokens must be between 1 and 4000')
     }
-    
-    console.log(`LLM config would be updated:`, { model, temperature, maxTokens })
-    
-    // In a real implementation, you would:
-    // 1. Store the configuration in Deno KV or environment variables
-    // 2. Update the ai-chat function to use these settings
-    // 3. Validate the model name against available models
-    
+    const supabase = getServiceClient()
+    await ensureBucket(supabase, CONFIG_BUCKET)
+    const payload = { model, temperature, maxTokens }
+    const { error } = await supabase.storage.from(CONFIG_BUCKET).upload('llm.json', new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), { upsert: true, contentType: 'application/json' })
+    if (error) throw error
     return new Response(
       JSON.stringify({ success: true, message: 'LLM configuration updated successfully' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
     throw new Error(`Failed to update LLM config: ${error.message}`)
+  }
+}
+
+async function getLLMConfig() {
+  try {
+    const supabase = getServiceClient()
+    await ensureBucket(supabase, CONFIG_BUCKET)
+    const { data } = await supabase.storage.from(CONFIG_BUCKET).download('llm.json')
+    if (!data) {
+      // Defaults
+      return new Response(
+        JSON.stringify({ success: true, config: { model: 'microsoft/wizardlm-2-8x22b', temperature: 0.7, maxTokens: 150 }, fallback: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const json = JSON.parse(await data.text())
+    return new Response(
+      JSON.stringify({ success: true, config: json }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  } catch (error) {
+    throw new Error(`Failed to get LLM config: ${error.message}`)
   }
 }
 

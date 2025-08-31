@@ -169,14 +169,23 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
 
   const downloadGeneratedImage = async () => {
     if (!generatedImage) return;
-    
     try {
-      const response = await fetch(generatedImage.url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const response = await fetch(generatedImage.url, { mode: 'cors' });
+      const webpBlob = await response.blob();
+      const bitmap = await createImageBitmap(webpBlob);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas unsupported');
+      ctx.drawImage(bitmap, 0, 0);
+      const jpegBlob: Blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('JPEG encode failed'))), 'image/jpeg', 0.92);
+      });
+      const url = window.URL.createObjectURL(jpegBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${modelName}_${generatedImage.photoType}_${Date.now()}.webp`;
+      link.download = `${modelName}_${generatedImage.photoType}_${Date.now()}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -586,7 +595,7 @@ const ModelProfileScreen: React.FC<ModelProfileScreenProps> = ({ modelName, onBa
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    <span>Download WebP</span>
+                    <span>Download JPG</span>
                   </button>
                   <button
                     onClick={() => setShowGeneratedImage(false)}

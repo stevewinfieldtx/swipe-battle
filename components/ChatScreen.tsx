@@ -23,6 +23,7 @@ interface ChatScreenProps {
 }
 
 const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, onBuyTokens, onSpendTokens, isCreator = false, isAuthenticated }) => {
+  const CHAT_IMAGE_COST = 2;
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,8 +41,35 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   const [imagesLoading, setImagesLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [pendingImageOffer, setPendingImageOffer] = useState<{ prompt: string } | null>(null);
-  const [selectedPhotoTypeChat, setSelectedPhotoTypeChat] = useState<'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude'>('sfw');
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
+  const downloadAsJpg = async (imageUrl: string, filename: string) => {
+    try {
+      const response = await fetch(imageUrl, { mode: 'cors' });
+      const webpBlob = await response.blob();
+      const bitmap = await createImageBitmap(webpBlob);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas unsupported');
+      ctx.drawImage(bitmap, 0, 0);
+      const jpegBlob: Blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('JPEG encode failed'))), 'image/jpeg', 0.92);
+      });
+      const url = URL.createObjectURL(jpegBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('JPEG download failed:', e);
+      alert('Download failed. Please try again.');
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -211,7 +239,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       const assistantOffer: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `I can send a fresh photo. Choose a type below and confirm. Costs — SFW: ${PRICING.PHOTOS.sfw.tokens}, Bikini: ${PRICING.PHOTOS.bikini.tokens}, Lingerie: ${PRICING.PHOTOS.lingerie.tokens}, Topless: ${PRICING.PHOTOS.topless.tokens}, Nude: ${PRICING.PHOTOS.nude.tokens} tokens.`,
+        content: `Actually… I can. They charge me ${CHAT_IMAGE_COST} tokens to send one. Can you cover that? If yes, tell me what kind of pose or vibe you want and I’ll snap it for you.`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, assistantOffer]);
@@ -247,7 +275,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
           content: data.response,
           timestamp: new Date()
         };
-        
+
         setMessages(prev => [...prev, aiMessage]);
       } else {
         throw new Error(data?.error || 'AI API failed');
@@ -271,19 +299,21 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
 
   const confirmCustomImage = async () => {
     if (!pendingImageOffer) return;
-    const type = selectedPhotoTypeChat;
-    const cost = PRICING.PHOTOS[type].tokens;
+    const cost = CHAT_IMAGE_COST;
 
     if (!isCreator && userTokens < cost) {
-      setError(`You need ${cost} tokens for a ${PRICING.PHOTOS[type].label} photo.`);
+      setError(`You need ${cost} tokens to get a photo.`);
       return;
     }
 
     try {
       setIsGeneratingImage(true);
       if (!isCreator) {
-        onSpendTokens(cost, `Custom ${PRICING.PHOTOS[type].label} photo from ${modelName}`);
+        onSpendTokens(cost, `Custom chat photo from ${modelName}`);
       }
+
+      // Build a loose photoType from current chat mode only to stay in-character but keep UX simple
+      const type: 'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude' = chatMode === 'sfw' ? 'sfw' : 'lingerie';
 
       const { data, error } = await supabase.functions.invoke('generate-image', {
         body: {
@@ -301,7 +331,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       const imgMessage: Message = {
         id: (Date.now() + 2).toString(),
         role: 'assistant',
-        content: `Here you go — a new ${PRICING.PHOTOS[type].label} shot.`,
+        content: `Here you go.`,
         timestamp: new Date(),
         kind: 'image',
         imageUrl: data.imageUrl
@@ -524,18 +554,17 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
                     <div className="space-y-2">
                       <img src={message.imageUrl} alt="Generated" className="rounded-lg border border-gray-600" />
                       <p className="text-xs text-gray-300">{message.content}</p>
-                      <a
-                        href={message.imageUrl}
-                        download={`${modelName}_${Date.now()}.webp`}
+                      <button
+                        onClick={() => downloadAsJpg(message.imageUrl!, `${modelName}_${Date.now()}.jpg`)}
                         className="inline-block text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
                       >
-                        Download WebP
-                      </a>
+                        Download JPG
+                      </button>
                     </div>
                   ) : (
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {message.content}
-                    </p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                    {message.content}
+                  </p>
                   )}
                   <p className="text-xs opacity-70 mt-2">
                     {formatTime(message.timestamp)}
@@ -608,73 +637,93 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
             </button>
           </div>
         </div>
+        {pendingImageOffer && (
+          <div className="mt-3 p-3 bg-gray-700 rounded-xl border border-gray-600">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm">Confirm and I’ll send a fresh photo (costs {CHAT_IMAGE_COST} tokens)</span>
+              <button
+                onClick={() => setPendingImageOffer(null)}
+                className="text-xs text-gray-300 hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+            <button
+              onClick={confirmCustomImage}
+              disabled={isGeneratingImage}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white py-2 rounded-lg"
+            >
+              {isGeneratingImage ? 'Generating…' : `Yes, cover ${CHAT_IMAGE_COST} tokens`}
+            </button>
+          </div>
+        )}
         <p className="text-xs text-gray-500 mt-2 text-center">
           Press Enter to send, Shift+Enter for new line
         </p>
         </div>
       </div>
 
-            {/* Right Side - Image Gallery */}
+      {/* Right Side - Image Gallery */}
       <div className="w-1/2 bg-black flex items-center justify-center relative overflow-hidden">
         <div className="w-full max-w-sm aspect-[3/4] relative">
-          {imagesLoading ? (
+        {imagesLoading ? (
             <div className="flex flex-col items-center justify-center space-y-4 h-full">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-              <p className="text-gray-400">Loading {modelName}'s photos...</p>
-            </div>
-          ) : modelImages.length > 0 ? (
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <p className="text-gray-400">Loading {modelName}'s photos...</p>
+          </div>
+        ) : modelImages.length > 0 ? (
             <>
-              <img 
-                src={modelImages[currentImageIndex]} 
-                alt={`${modelName} - Image ${currentImageIndex + 1}`}
+            <img 
+              src={modelImages[currentImageIndex]} 
+              alt={`${modelName} - Image ${currentImageIndex + 1}`}
                 className="w-full h-full object-cover transition-opacity duration-500 rounded-lg"
-                style={{ 
+              style={{ 
                   objectPosition: 'center top',
-                  filter: 'brightness(0.95)' 
-                }}
-              />
-              
-              {/* Image overlay with model info */}
+                filter: 'brightness(0.95)' 
+              }}
+            />
+            
+            {/* Image overlay with model info */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-b-lg">
-                <div className="flex items-center justify-between">
-                  <div>
+              <div className="flex items-center justify-between">
+                <div>
                     <h3 className="text-white text-lg font-bold">{modelName}</h3>
                     <p className="text-gray-300 text-xs">SFW Gallery</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
+                </div>
+                <div className="flex items-center space-x-2">
                     <span className="text-white/70 text-xs">
-                      {currentImageIndex + 1} / {modelImages.length}
-                    </span>
-                    <div className="flex space-x-1">
-                      {modelImages.slice(0, Math.min(5, modelImages.length)).map((_, index) => (
-                        <div
-                          key={index}
+                    {currentImageIndex + 1} / {modelImages.length}
+                  </span>
+                  <div className="flex space-x-1">
+                    {modelImages.slice(0, Math.min(5, modelImages.length)).map((_, index) => (
+                      <div
+                        key={index}
                           className={`w-1.5 h-1.5 rounded-full transition-all ${
-                            index === currentImageIndex % 5 ? 'bg-white' : 'bg-white/30'
-                          }`}
-                        />
-                      ))}
-                    </div>
+                          index === currentImageIndex % 5 ? 'bg-white' : 'bg-white/30'
+                        }`}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Subtle rotation indicator */}
+            {/* Subtle rotation indicator */}
               <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5">
                 <div className="w-2 h-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center space-y-4 text-center h-full">
-              <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center">
-                <span className="text-gray-400 text-2xl">📷</span>
-              </div>
-              <div>
-                <p className="text-gray-400 text-lg">No images available</p>
-                <p className="text-gray-500 text-sm">Upload some photos to see them here</p>
-              </div>
             </div>
-          )}
+            </>
+        ) : (
+            <div className="flex flex-col items-center justify-center space-y-4 text-center h-full">
+            <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center">
+              <span className="text-gray-400 text-2xl">📷</span>
+            </div>
+            <div>
+              <p className="text-gray-400 text-lg">No images available</p>
+              <p className="text-gray-500 text-sm">Upload some photos to see them here</p>
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </div>

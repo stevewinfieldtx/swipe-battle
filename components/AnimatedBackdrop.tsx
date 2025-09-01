@@ -94,7 +94,7 @@ const AnimatedBackdrop: React.FC = () => {
     setImages(backdropImages);
   };
 
-  // Animate images moving off-screen and new ones appearing
+  // Animate ONE image sliding off and being replaced every 2 seconds
   useEffect(() => {
     if (allImageUrls.length === 0) return;
 
@@ -104,30 +104,34 @@ const AnimatedBackdrop: React.FC = () => {
 
         const newImages = [...prevImages];
         
-        // Move all images left by 2-5%
-        newImages.forEach(img => {
-          img.x -= Math.random() * 3 + 2; // Move 2-5% left
-        });
-
-        // Remove images that are completely off-screen (less than -20%)
-        const visibleImages = newImages.filter(img => img.x > -20);
-
-        // Add new images from the right if we lost some
-        const imagesToAdd = prevImages.length - visibleImages.length;
+        // Pick one random image to slide off
+        const randomIndex = Math.floor(Math.random() * newImages.length);
+        const imageToRemove = newImages[randomIndex];
         
-        for (let i = 0; i < imagesToAdd; i++) {
-          const randomUrl = allImageUrls[Math.floor(Math.random() * allImageUrls.length)];
-          visibleImages.push({
-            url: randomUrl,
-            id: `backdrop-${Date.now()}-${i}`,
-            x: 110 + Math.random() * 20, // Start from 110-130% (off-screen right)
-            y: Math.random() * 120 - 10,
-            size: Math.random() * 100 + 80,
-            rotation: Math.random() * 360
+        // Mark it for sliding off to the left
+        imageToRemove.x = -30; // Slide off to the left
+        
+        // After a short delay, replace it with a new image
+        setTimeout(() => {
+          setImages(currentImages => {
+            const updatedImages = currentImages.filter(img => img.id !== imageToRemove.id);
+            
+            // Add a new image in the same position
+            const randomUrl = allImageUrls[Math.floor(Math.random() * allImageUrls.length)];
+            updatedImages.push({
+              url: randomUrl,
+              id: `backdrop-${Date.now()}`,
+              x: imageToRemove.x + 30, // Start at the original position
+              y: imageToRemove.y,
+              size: imageToRemove.size,
+              rotation: Math.random() * 360
+            });
+            
+            return updatedImages;
           });
-        }
-
-        return visibleImages;
+        }, 500); // Wait for slide animation to complete
+        
+        return newImages;
       });
     }, 2000); // Every 2 seconds
 

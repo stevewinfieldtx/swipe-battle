@@ -105,7 +105,7 @@ const AnimatedBackdrop: React.FC = () => {
     setImages(backdropImages);
   };
 
-  // Animate ONE image sliding off and being replaced every 2 seconds
+  // Replace ONE image with fade effect every 2 seconds
   useEffect(() => {
     if (allImageUrls.length === 0) return;
 
@@ -115,32 +115,20 @@ const AnimatedBackdrop: React.FC = () => {
 
         const newImages = [...prevImages];
         
-        // Pick one random image to slide off
+        // Pick one random image to replace
         const randomIndex = Math.floor(Math.random() * newImages.length);
-        const imageToRemove = newImages[randomIndex];
+        const imageToReplace = newImages[randomIndex];
         
-        // Mark it for sliding off to the left
-        imageToRemove.x = -30; // Slide off to the left
-        
-        // After a short delay, replace it with a new image
-        setTimeout(() => {
-          setImages(currentImages => {
-            const updatedImages = currentImages.filter(img => img.id !== imageToRemove.id);
-            
-            // Add a new image in the same position
-            const randomUrl = allImageUrls[Math.floor(Math.random() * allImageUrls.length)];
-            updatedImages.push({
-              url: randomUrl,
-              id: `backdrop-${Date.now()}`,
-              x: imageToRemove.x + 30, // Start at the original position
-              y: imageToRemove.y,
-              size: imageToRemove.size,
-              rotation: 0 // No rotation for clean grid
-            });
-            
-            return updatedImages;
-          });
-        }, 500); // Wait for slide animation to complete
+        // Replace it with a new random image in the same position
+        const randomUrl = allImageUrls[Math.floor(Math.random() * allImageUrls.length)];
+        newImages[randomIndex] = {
+          url: randomUrl,
+          id: `backdrop-${Date.now()}`,
+          x: imageToReplace.x,
+          y: imageToReplace.y,
+          size: imageToReplace.size,
+          rotation: 0 // No rotation for clean grid
+        };
         
         return newImages;
       });

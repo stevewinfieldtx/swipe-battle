@@ -10,6 +10,19 @@ interface BackdropImage {
   rotation: number;
 }
 
+// Preset images for instant loading - add your best/most popular model photos here
+const PRESET_IMAGES = [
+  '/placeholder-model-1.jpg',
+  '/placeholder-model-2.jpg', 
+  '/placeholder-model-3.jpg',
+  '/placeholder-model-4.jpg',
+  '/placeholder-model-5.jpg',
+  '/placeholder-model-6.jpg',
+  '/placeholder-model-7.jpg',
+  '/placeholder-model-8.jpg',
+  // Add more preset images as needed
+];
+
 const AnimatedBackdrop: React.FC = () => {
   const [images, setImages] = useState<BackdropImage[]>([]);
   const [allImageUrls, setAllImageUrls] = useState<string[]>([]);

@@ -75,9 +75,9 @@ const AnimatedBackdrop: React.FC = () => {
   const initializeBackdrop = (urls: string[]) => {
     if (urls.length === 0) return;
 
-    // Calculate grid dimensions to fill the screen completely
-    const cols = 10; // 10 columns
-    const rows = 5; // 5 rows = 50 total images
+    // Calculate grid dimensions for 3:4 portrait aspect ratio
+    const cols = 12; // 12 columns
+    const rows = 4; // 4 rows = 48 total images
     
     const shuffled = [...urls].sort(() => Math.random() - 0.5);
     const backdropImages: BackdropImage[] = [];
@@ -170,8 +170,8 @@ const AnimatedBackdrop: React.FC = () => {
           style={{
             left: `${image.x}%`,
             top: `${image.y}%`,
-            width: `${100/10}%`, // Fill cell width exactly (10 columns)
-            height: `${100/5}%`, // Fill cell height exactly (5 rows)
+            width: `${100/12}%`, // Fill cell width exactly (12 columns)
+            height: `${100/4}%`, // Fill cell height exactly (4 rows)
             transform: `rotate(${image.rotation}deg)`,
             zIndex: 1
           }}

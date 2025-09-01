@@ -66,13 +66,6 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
   const loadAvailableLLMs = async () => {
     try {
       setLlmLoading(true);
-      const { data, error } = await supabase.functions.invoke('admin-config', {
-        body: {},
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
       const url = new URL(window.location.origin);
       url.pathname = '/functions/v1/admin-config';
       url.searchParams.set('action', 'get-available-llms');
@@ -81,6 +74,7 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'apikey': `${supabase.supabaseKey}`,
           'Content-Type': 'application/json',
         },
       });

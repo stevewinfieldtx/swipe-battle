@@ -14,6 +14,7 @@ import ModelProfileScreen from './components/ModelProfileScreen';
 import ChatScreen from './components/ChatScreen';
 import ModelListScreen from './components/ModelListScreen';
 import TokenStore from './components/TokenStore';
+import AnimatedBackdrop from './components/AnimatedBackdrop';
 
 // --- SUB-COMPONENTS FOR CLARITY ---
 
@@ -35,28 +36,35 @@ const ConfigurationErrorScreen: React.FC = () => (
 const StartScreen: React.FC<{ onStart: (bucket: string) => void; onShowStats: () => void; onShowAdmin: () => void; onShowAdminConfig: () => void; onShowSubscription: () => void; onShowModelList: () => void; isPremium: boolean; onSignOut: () => void; isCreator: boolean }> = 
 ({ onStart, onShowStats, onShowAdmin, onShowAdminConfig, onShowSubscription, onShowModelList, isPremium, onSignOut, isCreator }) => {
     return (
-        <div className="flex flex-col items-center justify-center h-full text-white p-4 animate-fade-in">
-          <div className="text-center mb-10">
-            <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Swipe Battle</h1>
-            <p className="text-gray-400 mt-2">Choose your champion.</p>
+        <div className="relative flex flex-col items-center justify-center h-full text-white p-4 animate-fade-in">
+          {/* Animated backdrop */}
+          <AnimatedBackdrop />
+          
+          {/* Main content - positioned above backdrop */}
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="text-center mb-10">
+              <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 drop-shadow-2xl">Model-Wars</h1>
+              <p className="text-gray-200 mt-2 drop-shadow-lg">Which One Would You...</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 w-full max-w-sm">
+              <button onClick={() => onStart(BUCKET_NAME)} className="bg-purple-600/90 hover:bg-purple-700/95 backdrop-blur-sm text-white font-bold py-4 rounded-xl text-lg transition-all duration-200 transform hover:scale-105 shadow-xl border border-purple-500/30">
+                Start SFW Battle
+              </button>
+              <button onClick={() => isPremium ? onStart(NSFW_BUCKET_NAME) : onShowSubscription()} className={`font-bold py-4 rounded-xl text-lg transition-all duration-200 transform hover:scale-105 text-white shadow-xl border backdrop-blur-sm ${isPremium ? 'bg-pink-600/90 hover:bg-pink-700/95 border-pink-500/30' : 'bg-gray-700/90 hover:bg-gray-600/95 border-gray-600/30'}`}>
+                {isPremium ? 'Start NSFW Battle' : 'Unlock NSFW Mode ✨'}
+              </button>
+              <button onClick={onShowStats} className="bg-gray-800/90 hover:bg-gray-700/95 backdrop-blur-sm text-white font-bold py-3 rounded-xl transition-all shadow-lg border border-gray-600/30">My Stats</button>
+              {isCreator && (
+                <button onClick={onShowModelList} className="bg-blue-600/90 hover:bg-blue-700/95 backdrop-blur-sm text-white font-bold py-3 rounded-xl transition-all shadow-lg border border-blue-500/30">Model Directory</button>
+              )}
+              <button onClick={onShowAdmin} className="bg-gray-800/90 hover:bg-gray-700/95 backdrop-blur-sm text-white font-bold py-3 rounded-xl transition-all shadow-lg border border-gray-600/30">Creator Studio</button>
+              {isCreator && (
+                <button onClick={onShowAdminConfig} className="bg-green-600/90 hover:bg-green-700/95 backdrop-blur-sm text-white font-bold py-3 rounded-xl transition-all shadow-lg border border-green-500/30">Admin Config</button>
+              )}
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 w-full max-w-sm">
-            <button onClick={() => onStart(BUCKET_NAME)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl text-lg transition-transform duration-200 transform hover:scale-105">
-              Start SFW Battle
-            </button>
-            <button onClick={() => isPremium ? onStart(NSFW_BUCKET_NAME) : onShowSubscription()} className={`font-bold py-4 rounded-xl text-lg transition-transform duration-200 transform hover:scale-105 text-white ${isPremium ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-700 hover:bg-gray-600'}`}>
-              {isPremium ? 'Start NSFW Battle' : 'Unlock NSFW Mode ✨'}
-            </button>
-            <button onClick={onShowStats} className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-colors">My Stats</button>
-            {isCreator && (
-              <button onClick={onShowModelList} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">Model Directory</button>
-            )}
-            <button onClick={onShowAdmin} className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition-colors">Creator Studio</button>
-            {isCreator && (
-              <button onClick={onShowAdminConfig} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">Admin Config</button>
-            )}
-          </div>
-          <button onClick={onSignOut} className="absolute top-4 right-4 bg-gray-700/50 hover:bg-gray-600/80 text-white text-xs py-2 px-4 rounded-full transition-colors">
+          
+          <button onClick={onSignOut} className="absolute top-4 right-4 bg-gray-700/70 hover:bg-gray-600/90 backdrop-blur-sm text-white text-xs py-2 px-4 rounded-full transition-all z-10 border border-gray-600/30">
             Sign Out
           </button>
         </div>

@@ -75,13 +75,16 @@ const AnimatedBackdrop: React.FC = () => {
   const initializeBackdrop = (urls: string[]) => {
     if (urls.length === 0) return;
 
-    // Calculate grid dimensions to fill the screen
+    // Calculate grid dimensions to fill the screen completely
     const cols = 8; // 8 columns
     const rows = 6; // 6 rows = 48 total images
-    const totalSlots = cols * rows;
     
     const shuffled = [...urls].sort(() => Math.random() - 0.5);
     const backdropImages: BackdropImage[] = [];
+    
+    // Calculate cell size to fill screen completely
+    const cellWidth = 100 / cols; // % width per cell
+    const cellHeight = 100 / rows; // % height per cell
     
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
@@ -91,10 +94,10 @@ const AnimatedBackdrop: React.FC = () => {
         backdropImages.push({
           url: imageUrl,
           id: `backdrop-${index}`,
-          x: (col * (100 / cols)) + (100 / cols / 2), // Center in grid cell
-          y: (row * (100 / rows)) + (100 / rows / 2), // Center in grid cell
-          size: Math.min(window.innerWidth, window.innerHeight) / 12, // Responsive size
-          rotation: Math.random() * 20 - 10 // Subtle rotation (-10 to +10 degrees)
+          x: col * cellWidth, // Start at cell edge
+          y: row * cellHeight, // Start at cell edge
+          size: window.innerWidth / cols, // Fill cell width
+          rotation: 0 // No rotation for clean grid
         });
       }
     }
@@ -132,7 +135,7 @@ const AnimatedBackdrop: React.FC = () => {
               x: imageToRemove.x + 30, // Start at the original position
               y: imageToRemove.y,
               size: imageToRemove.size,
-              rotation: Math.random() * 20 - 10 // Subtle rotation (-10 to +10 degrees)
+              rotation: 0 // No rotation for clean grid
             });
             
             return updatedImages;
@@ -167,8 +170,8 @@ const AnimatedBackdrop: React.FC = () => {
           style={{
             left: `${image.x}%`,
             top: `${image.y}%`,
-            width: `${image.size}px`,
-            height: `${image.size * 1.3}px`, // Maintain portrait aspect ratio
+            width: `${100/8}%`, // Fill cell width exactly
+            height: `${100/6}%`, // Fill cell height exactly
             transform: `rotate(${image.rotation}deg)`,
             zIndex: 1
           }}
@@ -176,7 +179,7 @@ const AnimatedBackdrop: React.FC = () => {
           <img
             src={image.url}
             alt=""
-            className="w-full h-full object-cover rounded-lg shadow-lg"
+            className="w-full h-full object-cover"
             loading="lazy"
             onError={(e) => {
               // Hide broken images

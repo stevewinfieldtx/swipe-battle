@@ -71,24 +71,32 @@ const AnimatedBackdrop: React.FC = () => {
     loadSFWImages();
   }, []);
 
-  // Initialize backdrop with random positioned images
+  // Initialize backdrop with grid-positioned images
   const initializeBackdrop = (urls: string[]) => {
     if (urls.length === 0) return;
 
-    const numberOfImages = Math.min(35, urls.length); // 30-40 images, but not more than available
-    const shuffled = [...urls].sort(() => Math.random() - 0.5);
+    // Calculate grid dimensions to fill the screen
+    const cols = 8; // 8 columns
+    const rows = 6; // 6 rows = 48 total images
+    const totalSlots = cols * rows;
     
+    const shuffled = [...urls].sort(() => Math.random() - 0.5);
     const backdropImages: BackdropImage[] = [];
     
-    for (let i = 0; i < numberOfImages; i++) {
-      backdropImages.push({
-        url: shuffled[i % shuffled.length],
-        id: `backdrop-${i}`,
-        x: Math.random() * 120 - 10, // -10% to 110% (allows for off-screen positioning)
-        y: Math.random() * 120 - 10,
-        size: Math.random() * 100 + 80, // 80-180px
-        rotation: Math.random() * 360
-      });
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const index = row * cols + col;
+        const imageUrl = shuffled[index % shuffled.length];
+        
+        backdropImages.push({
+          url: imageUrl,
+          id: `backdrop-${index}`,
+          x: (col * (100 / cols)) + (100 / cols / 2), // Center in grid cell
+          y: (row * (100 / rows)) + (100 / rows / 2), // Center in grid cell
+          size: Math.min(window.innerWidth, window.innerHeight) / 12, // Responsive size
+          rotation: Math.random() * 20 - 10 // Subtle rotation (-10 to +10 degrees)
+        });
+      }
     }
     
     setImages(backdropImages);
@@ -124,7 +132,7 @@ const AnimatedBackdrop: React.FC = () => {
               x: imageToRemove.x + 30, // Start at the original position
               y: imageToRemove.y,
               size: imageToRemove.size,
-              rotation: Math.random() * 360
+              rotation: Math.random() * 20 - 10 // Subtle rotation (-10 to +10 degrees)
             });
             
             return updatedImages;
@@ -155,7 +163,7 @@ const AnimatedBackdrop: React.FC = () => {
       {images.map((image) => (
         <div
           key={image.id}
-          className="absolute transition-all duration-[2000ms] ease-linear opacity-50"
+          className="absolute transition-all duration-[2000ms] ease-linear opacity-75"
           style={{
             left: `${image.x}%`,
             top: `${image.y}%`,

@@ -39,6 +39,12 @@ const AuthScreen: React.FC = () => {
           {isSignUp ? 'Create Account' : 'Welcome Back'}
         </h1>
         <p className="text-gray-400 text-center mb-6">{isSignUp ? 'Join the battle!' : 'Sign in to continue.'}</p>
+        
+        <div className="bg-green-600/20 border border-green-500/30 rounded-lg p-3 mb-6">
+          <p className="text-green-400 text-sm font-medium text-center">
+            🎉 <strong>15 Minutes FREE</strong> - Try any chat immediately, no payment required!
+          </p>
+        </div>
 
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
           <input

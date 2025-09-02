@@ -31,8 +31,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   const [personality, setPersonality] = useState<ModelPersonality | null>(null);
   const [loadingPersonality, setLoadingPersonality] = useState(true);
   const [chatSessionActive, setChatSessionActive] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(30 * 60); // 30 minutes in seconds
-  const [actualTimeRemaining, setActualTimeRemaining] = useState(35 * 60); // 35 minutes (30 + 5 grace)
+  const [timeRemaining, setTimeRemaining] = useState(15 * 60); // 15 minutes in seconds
+  const [actualTimeRemaining, setActualTimeRemaining] = useState(20 * 60); // 20 minutes (15 + 5 grace)
   const [showTimeWarning, setShowTimeWarning] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [chatMode, setChatMode] = useState<ChatMode>('sfw');
@@ -250,18 +250,21 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   const startChatSession = () => {
     const currentPricing = PRICING.CHAT[chatMode];
     
+    // Free 15 minutes for everyone (no tokens required)
     if (!isCreator && userTokens < currentPricing.tokens) {
+      // This should never happen since tokens are 0 for free chat, but keeping as safety
       setError(`You need ${currentPricing.tokens} tokens to start a ${chatMode.toUpperCase()} chat session.`);
       return;
     }
     
-    if (!isCreator) {
-      onSpendTokens(currentPricing.tokens, `30-minute ${chatMode.toUpperCase()} chat with ${modelName}`);
+    // No tokens spent for free 15-minute session
+    if (!isCreator && currentPricing.tokens > 0) {
+      onSpendTokens(currentPricing.tokens, `15-minute ${chatMode.toUpperCase()} chat with ${modelName}`);
     }
     
     setChatSessionActive(true);
-    setTimeRemaining(30 * 60);
-    setActualTimeRemaining(35 * 60);
+    setTimeRemaining(15 * 60); // 15 minutes free
+    setActualTimeRemaining(20 * 60); // 15 + 5 grace period
     setShowTimeWarning(false);
     setSessionExpired(false);
     setError(null);
@@ -582,12 +585,19 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
             </div>
             
             {(isCreator || userTokens >= PRICING.CHAT[chatMode].tokens) && (chatMode === 'sfw' || isAuthenticated) ? (
-              <button
-                onClick={startChatSession}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition-colors"
-              >
-                Start Chat Session
-              </button>
+              <div className="text-center">
+                <div className="bg-green-600/20 border border-green-500/30 rounded-lg p-3 mb-4">
+                  <p className="text-green-400 text-sm font-medium">
+                    🎉 <strong>15 Minutes FREE</strong> - No tokens required!
+                  </p>
+                </div>
+                <button
+                  onClick={startChatSession}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition-colors"
+                >
+                  Start FREE Chat Session
+                </button>
+              </div>
             ) : (
               <div className="text-center">
                 <p className="text-red-400 mb-4">

@@ -58,15 +58,21 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ onClose, onSubscr
         onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
       >
         <h2 className="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
-          Unlock NSFW Mode
+          Unlock Premium Features
         </h2>
+        <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+          <h3 className="text-blue-400 font-bold mb-2">🎉 Everyone Gets 15 Minutes FREE!</h3>
+          <p className="text-gray-300 text-sm">Try any chat for 15 minutes at no cost - no tokens required!</p>
+        </div>
         <p className="text-gray-300 mb-6">
-          Get exclusive access to the NSFW battles by becoming a premium member.
+          Upgrade to premium for unlimited access to all features.
         </p>
         <ul className="text-left text-gray-300 mb-8 list-disc list-inside space-y-2">
-          <li>Access to all NSFW model battles.</li>
-          <li>Support the continued development of the game.</li>
-          <li>Ad-free experience (coming soon!).</li>
+          <li>✅ <strong>15 minutes FREE</strong> - Try any chat immediately</li>
+          <li>✅ <strong>Unlimited SFW/NSFW</strong> - No time limits for subscribers</li>
+          <li>✅ <strong>Custom photos</strong> - Request personalized images</li>
+          <li>✅ <strong>All model battles</strong> - Access to every model</li>
+          <li>✅ <strong>Priority support</strong> - Get help when you need it</li>
         </ul>
         
         {error && (

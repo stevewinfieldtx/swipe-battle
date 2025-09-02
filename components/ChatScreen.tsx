@@ -75,10 +75,16 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Extract clothing and activity context from chat messages
+  // Extract clothing and activity context from recent conversation that led to image request
   const extractClothingAndActivity = (messages: Message[]): string => {
-    const recentMessages = messages.slice(-20); // Look at last 20 messages
-    const assistantMessages = recentMessages.filter(m => m.role === 'assistant').map(m => m.content);
+    // Look at the last few messages leading up to the image request
+    const recentMessages = messages.slice(-6); // Last 6 messages (3 exchanges)
+    
+    // Focus on the most recent assistant messages that likely prompted the image request
+    const assistantMessages = recentMessages
+      .filter(m => m.role === 'assistant')
+      .map(m => m.content)
+      .reverse(); // Most recent first
     
     const clothingKeywords = [
       // Clothing items
@@ -103,35 +109,45 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     let clothingContext = '';
     let activityContext = '';
     
-    // Extract clothing mentions
-    assistantMessages.forEach(message => {
+    // Prioritize the most recent message first (likely the one that prompted the image request)
+    for (const message of assistantMessages) {
       const lowerMessage = message.toLowerCase();
+      
+      // Check for clothing mentions in this message
+      let foundClothing = false;
       clothingKeywords.forEach(keyword => {
         if (lowerMessage.includes(keyword)) {
-          // Extract sentence containing the keyword
+          foundClothing = true;
+          // Extract relevant sentences containing the keyword
           const sentences = message.split(/[.!?]/);
-          const relevantSentence = sentences.find(s => s.toLowerCase().includes(keyword));
-          if (relevantSentence && !clothingContext.includes(relevantSentence.trim())) {
-            clothingContext += relevantSentence.trim() + '. ';
-          }
+          sentences.forEach(sentence => {
+            if (sentence.toLowerCase().includes(keyword) && !clothingContext.includes(sentence.trim())) {
+              clothingContext += sentence.trim() + '. ';
+            }
+          });
         }
       });
-    });
-    
-    // Extract activity mentions
-    assistantMessages.forEach(message => {
-      const lowerMessage = message.toLowerCase();
+      
+      // Check for activity mentions in this message
+      let foundActivity = false;
       activityKeywords.forEach(keyword => {
         if (lowerMessage.includes(keyword)) {
-          // Extract sentence containing the keyword
+          foundActivity = true;
+          // Extract relevant sentences containing the keyword
           const sentences = message.split(/[.!?]/);
-          const relevantSentence = sentences.find(s => s.toLowerCase().includes(keyword));
-          if (relevantSentence && !activityContext.includes(relevantSentence.trim())) {
-            activityContext += relevantSentence.trim() + '. ';
-          }
+          sentences.forEach(sentence => {
+            if (sentence.toLowerCase().includes(keyword) && !activityContext.includes(sentence.trim())) {
+              activityContext += sentence.trim() + '. ';
+            }
+          });
         }
       });
-    });
+      
+      // If we found rich context in this recent message, prioritize it and don't need to go further back
+      if (foundClothing && foundActivity) {
+        break;
+      }
+    }
     
     // Combine contexts
     let context = '';

@@ -33,7 +33,7 @@ serve(async (req) => {
     }
 
     // Enhanced prompt based on photo type, model, and chat context
-    const enhancedPrompt = buildEnhancedPrompt(prompt, photoType, modelName, chatContext)
+    const enhancedPrompt = await buildEnhancedPrompt(prompt, photoType, modelName, chatContext)
 
     // Call Runware API using their SDK pattern
     const imageResponse = await generateImageWithRunware(enhancedPrompt, photoType)
@@ -94,9 +94,26 @@ serve(async (req) => {
   }
 })
 
-function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: string, chatContext?: string): string {
-  // Start with a comprehensive base prompt (targeting 225-250 tokens)
-  let enhanced = `Stunning portrait of a beautiful woman named ${modelName}, ${userPrompt}, `
+async function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: string, chatContext?: string): Promise<string> {
+  // Try to load model's physical description from their JSON file
+  let physicalDescription = '';
+  try {
+    // Fetch model data from the public folder (this will work when deployed)
+    const modelUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/model-configs/${modelName.toLowerCase()}.json`;
+    const response = await fetch(modelUrl);
+    
+    if (response.ok) {
+      const modelData = await response.json();
+      physicalDescription = modelData.physical_description || '';
+    }
+  } catch (error) {
+    console.log(`Could not load model config for ${modelName}, using fallback`);
+  }
+  
+  // Start with physical description or fallback to name
+  let enhanced = physicalDescription 
+    ? `${physicalDescription}, ${userPrompt}, ` 
+    : `Stunning portrait of a beautiful woman named ${modelName}, ${userPrompt}, `;
   
   // Add chat context if provided (clothing and activity from conversation)
   if (chatContext && chatContext !== 'No specific clothing or activity mentioned in recent chat') {

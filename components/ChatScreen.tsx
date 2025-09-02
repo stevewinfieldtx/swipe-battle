@@ -75,6 +75,76 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Extract clothing and activity context from chat messages
+  const extractClothingAndActivity = (messages: Message[]): string => {
+    const recentMessages = messages.slice(-20); // Look at last 20 messages
+    const assistantMessages = recentMessages.filter(m => m.role === 'assistant').map(m => m.content);
+    
+    const clothingKeywords = [
+      // Clothing items
+      'wearing', 'dressed in', 'outfit', 'clothes', 'shirt', 'blouse', 'dress', 'skirt', 'pants', 'jeans', 
+      'shorts', 'top', 'sweater', 'jacket', 'coat', 'bikini', 'swimsuit', 'lingerie', 'underwear', 
+      'bra', 'panties', 'stockings', 'heels', 'shoes', 'boots', 'sandals', 'jewelry', 'necklace', 
+      'earrings', 'bracelet', 'ring', 'watch', 'hat', 'cap', 'scarf', 'gloves', 'sunglasses',
+      // Colors and materials
+      'black', 'white', 'red', 'blue', 'green', 'pink', 'purple', 'yellow', 'gray', 'brown',
+      'silk', 'cotton', 'lace', 'leather', 'denim', 'satin', 'velvet', 'linen'
+    ];
+    
+    const activityKeywords = [
+      // Activities and locations
+      'doing', 'at the', 'in the', 'on the', 'sitting', 'standing', 'lying', 'walking', 'running',
+      'dancing', 'swimming', 'cooking', 'reading', 'writing', 'working', 'studying', 'exercising',
+      'yoga', 'gym', 'beach', 'pool', 'park', 'home', 'kitchen', 'bedroom', 'bathroom', 'office',
+      'restaurant', 'cafe', 'bar', 'club', 'shopping', 'driving', 'traveling', 'vacation',
+      'morning', 'afternoon', 'evening', 'night', 'shower', 'bath', 'bed', 'couch', 'chair'
+    ];
+    
+    let clothingContext = '';
+    let activityContext = '';
+    
+    // Extract clothing mentions
+    assistantMessages.forEach(message => {
+      const lowerMessage = message.toLowerCase();
+      clothingKeywords.forEach(keyword => {
+        if (lowerMessage.includes(keyword)) {
+          // Extract sentence containing the keyword
+          const sentences = message.split(/[.!?]/);
+          const relevantSentence = sentences.find(s => s.toLowerCase().includes(keyword));
+          if (relevantSentence && !clothingContext.includes(relevantSentence.trim())) {
+            clothingContext += relevantSentence.trim() + '. ';
+          }
+        }
+      });
+    });
+    
+    // Extract activity mentions
+    assistantMessages.forEach(message => {
+      const lowerMessage = message.toLowerCase();
+      activityKeywords.forEach(keyword => {
+        if (lowerMessage.includes(keyword)) {
+          // Extract sentence containing the keyword
+          const sentences = message.split(/[.!?]/);
+          const relevantSentence = sentences.find(s => s.toLowerCase().includes(keyword));
+          if (relevantSentence && !activityContext.includes(relevantSentence.trim())) {
+            activityContext += relevantSentence.trim() + '. ';
+          }
+        }
+      });
+    });
+    
+    // Combine contexts
+    let context = '';
+    if (clothingContext.trim()) {
+      context += `Clothing: ${clothingContext.trim()} `;
+    }
+    if (activityContext.trim()) {
+      context += `Activity: ${activityContext.trim()}`;
+    }
+    
+    return context.trim() || 'No specific clothing or activity mentioned in recent chat';
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -317,13 +387,20 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       // Build a loose photoType from current chat mode only to stay in-character but keep UX simple
       const type: 'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude' = chatMode === 'sfw' ? 'sfw' : 'lingerie';
 
+      // Extract clothing and activity context from recent chat messages
+      const chatContext = extractClothingAndActivity(messages);
+      
+      // Enhanced prompt with chat context
+      const enhancedPrompt = `${pendingImageOffer.prompt}. Context from chat: ${chatContext}. Generate a full body picture showing the complete outfit and activity mentioned.`;
+
       const { data, error } = await supabase.functions.invoke('generate-image', {
         body: {
-          prompt: pendingImageOffer.prompt,
+          prompt: enhancedPrompt,
           photoType: type,
           modelName: modelName,
           userEmail: '',
-          userId: null
+          userId: null,
+          chatContext: chatContext // Pass context separately too
         }
       });
 

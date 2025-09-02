@@ -22,7 +22,8 @@ serve(async (req) => {
       photoType, 
       modelName, 
       userEmail, 
-      userId 
+      userId,
+      chatContext 
     } = await req.json()
 
     console.log('Image generation request:', { prompt, photoType, modelName, userEmail })
@@ -31,8 +32,8 @@ serve(async (req) => {
       throw new Error('RUNWARE_API_KEY not configured')
     }
 
-    // Enhanced prompt based on photo type and model
-    const enhancedPrompt = buildEnhancedPrompt(prompt, photoType, modelName)
+    // Enhanced prompt based on photo type, model, and chat context
+    const enhancedPrompt = buildEnhancedPrompt(prompt, photoType, modelName, chatContext)
 
     // Call Runware API using their SDK pattern
     const imageResponse = await generateImageWithRunware(enhancedPrompt, photoType)
@@ -93,9 +94,14 @@ serve(async (req) => {
   }
 })
 
-function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: string): string {
+function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: string, chatContext?: string): string {
   // Start with a comprehensive base prompt (targeting 225-250 tokens)
   let enhanced = `Stunning portrait of a beautiful woman named ${modelName}, ${userPrompt}, `
+  
+  // Add chat context if provided (clothing and activity from conversation)
+  if (chatContext && chatContext !== 'No specific clothing or activity mentioned in recent chat') {
+    enhanced += `${chatContext}, `
+  }
 
   // Add detailed photo type specific styling and composition
   switch (photoType) {

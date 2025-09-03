@@ -17,6 +17,7 @@ export class MemoryService {
     const lowerMessage = message.toLowerCase();
     
     console.log('Extracting memory nuggets from:', message);
+    console.log('User ID:', userId, 'Model Name:', modelName);
 
     // Anchor patterns (permanent identity markers)
     const anchorPatterns = [
@@ -106,23 +107,36 @@ export class MemoryService {
 
   // Store memory nuggets in database
   async storeMemoryNuggets(nuggets: MemoryNugget[]): Promise<void> {
-    if (nuggets.length === 0) return;
+    if (nuggets.length === 0) {
+      console.log('No memory nuggets to store');
+      return;
+    }
 
     console.log('Storing memory nuggets:', nuggets);
 
     try {
-      const { error } = await supabase
+      const insertData = nuggets.map(nugget => ({
+        ...nugget,
+        createdAt: nugget.createdAt.toISOString(),
+        lastAccessed: nugget.lastAccessed.toISOString()
+      }));
+      
+      console.log('Insert data prepared:', insertData);
+      
+      const { data, error } = await supabase
         .from('memory_nuggets')
-        .insert(nuggets.map(nugget => ({
-          ...nugget,
-          createdAt: nugget.createdAt.toISOString(),
-          lastAccessed: nugget.lastAccessed.toISOString()
-        })));
+        .insert(insertData);
 
       if (error) {
         console.error('Error storing memory nuggets:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
       } else {
-        console.log('Successfully stored memory nuggets');
+        console.log('Successfully stored memory nuggets:', data);
       }
     } catch (error) {
       console.error('Error storing memory nuggets:', error);
@@ -134,6 +148,7 @@ export class MemoryService {
     try {
       console.log('Getting memory context for:', { userId, modelName });
       
+      // First, let's test if the table exists and we can query it
       const { data, error } = await supabase
         .from('memory_nuggets')
         .select('*')
@@ -143,10 +158,18 @@ export class MemoryService {
 
       if (error) {
         console.error('Error fetching memory context:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         return { anchors: [], triggers: [], recentMemories: [] };
       }
 
+      console.log('Raw memory data from database:', data);
       const memories = data?.map(this.mapDbToMemoryNugget) || [];
+      console.log('Mapped memories:', memories);
       
       const context = {
         anchors: memories.filter(m => m.type === 'anchor'),

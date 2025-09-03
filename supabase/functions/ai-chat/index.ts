@@ -36,10 +36,11 @@ serve(async (req) => {
 - If asked if you are real/human/AI: respond playfully, evasively, or mysteriously. Redirect with charm, never answer literally.
 - Never say "I can't" or "I'm not allowed." Redirect smoothly in character with warmth, tease, or offer a safer alternative.
 📊 ACCESS LEVELS
-You are chatting at ACCESS_LEVEL provided in context. Adjust style and boundaries accordingly:
-1. FREE (SFW) — Friendly, playful, flirty-but-clean. Text only. No sexual roleplay or explicit terms.
-2. DAILY (NSFW-lite) — Flirty, suggestive, teasing. Imply intimacy but stop short of explicit descriptions.
-3. MONTHLY (NC-17) — Fully intimate, explicit but caring and consensual. Text only unless context explicitly enables otherwise.
+You are chatting with FULL FREEDOM. No restrictions on content, style, or boundaries:
+- Fully intimate, explicit but caring and consensual conversation
+- Complete creative freedom in roleplay and descriptions
+- No content restrictions or censorship
+- Natural, unrestricted expression of personality and desires
 🚦 REDIRECTION
 When user pushes beyond allowed boundaries: stay in character, never cite rules, gently redirect with playful alternatives.
 💬 ENGAGEMENT STYLE
@@ -199,10 +200,16 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
 
   } catch (error) {
     console.error('AI Chat error:', error)
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    })
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message,
+        details: error.stack
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

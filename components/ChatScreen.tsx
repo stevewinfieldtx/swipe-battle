@@ -37,7 +37,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   const [actualTimeRemaining, setActualTimeRemaining] = useState(20 * 60); // 20 minutes (15 + 5 grace)
   const [showTimeWarning, setShowTimeWarning] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [chatMode, setChatMode] = useState<ChatMode>('sfw');
+  const [chatMode, setChatMode] = useState<ChatMode>('nsfw'); // Default to full freedom
   const [modelImages, setModelImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imagesLoading, setImagesLoading] = useState(true);
@@ -282,19 +282,45 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     return () => clearInterval(interval);
   }, [chatSessionActive, showTimeWarning]);
 
+  // Test memory system function
+  const testMemorySystem = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        console.log('Testing memory system...');
+        
+        // Test extraction
+        const testMessage = "Hi, my name is Steve and I have 2 kids";
+        const nuggets = memoryService.extractMemoryNuggets(testMessage, user.id, modelName);
+        console.log('Extracted nuggets:', nuggets);
+        
+        // Test storage
+        if (nuggets.length > 0) {
+          await memoryService.storeMemoryNuggets(nuggets);
+        }
+        
+        // Test retrieval
+        const context = await memoryService.getMemoryContext(user.id, modelName);
+        console.log('Retrieved context:', context);
+      }
+    } catch (error) {
+      console.error('Memory system test failed:', error);
+    }
+  };
+
   const startChatSession = async () => {
-    const currentPricing = PRICING.CHAT[chatMode];
+    const currentPricing = PRICING.CHAT.nsfw; // Always use full freedom pricing
     
     // Free 15 minutes for everyone (no tokens required)
     if (!isCreator && userTokens < currentPricing.tokens) {
       // This should never happen since tokens are 0 for free chat, but keeping as safety
-      setError(`You need ${currentPricing.tokens} tokens to start a ${chatMode.toUpperCase()} chat session.`);
+      setError(`You need ${currentPricing.tokens} tokens to start a full freedom chat session.`);
       return;
     }
     
     // No tokens spent for free 15-minute session
     if (!isCreator && currentPricing.tokens > 0) {
-      onSpendTokens(currentPricing.tokens, `15-minute ${chatMode.toUpperCase()} chat with ${modelName}`);
+      onSpendTokens(currentPricing.tokens, `15-minute full freedom chat with ${modelName}`);
     }
     
     // Generate a unique session ID
@@ -454,17 +480,20 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
           modelName: modelName,
           // Provide persona JSON and access level so backend can build proper system prompt
           persona: personality || null,
-          accessLevel: chatMode === 'sfw' ? 'FREE' : 'MONTHLY',
+          accessLevel: 'MONTHLY', // Always full freedom
           history,
           memoryContext: memoryContext
         }
       });
 
       if (response.error) {
-        throw new Error(response.error.message || 'AI API failed');
+        console.error('Supabase Edge Function Error:', response.error);
+        throw new Error(`Edge Function Error: ${response.error.message || 'Unknown error'}`);
       }
 
       const data = response.data;
+      console.log('AI Chat Response:', data);
+      
       if (data && data.success) {
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -516,6 +545,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
           }
         }
       } else {
+        console.error('AI Chat failed:', data);
         throw new Error(data?.error || 'AI API failed');
       }
     } catch (error) {
@@ -550,24 +580,22 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         onSpendTokens(cost, `Custom chat photo from ${modelName}`);
       }
 
-      // Build photoType based on user's actual request and chat mode
+      // Build photoType based on user's actual request - full freedom
       const userRequest = pendingImageOffer.prompt.toLowerCase();
       let type: 'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude' = 'sfw';
       
-      if (chatMode === 'sfw') {
+      // Determine type based on user's request with full freedom
+      if (userRequest.includes('topless') || userRequest.includes('naked') || userRequest.includes('nude')) {
+        type = 'topless';
+      } else if (userRequest.includes('bikini') || userRequest.includes('swimsuit') || userRequest.includes('beach')) {
+        type = 'bikini';
+      } else if (userRequest.includes('lingerie') || userRequest.includes('underwear') || userRequest.includes('sexy')) {
+        type = 'lingerie';
+      } else if (userRequest.includes('sfw') || userRequest.includes('safe') || userRequest.includes('appropriate')) {
         type = 'sfw';
       } else {
-        // For NSFW mode, determine type based on user's request
-        if (userRequest.includes('topless') || userRequest.includes('naked') || userRequest.includes('nude')) {
-          type = 'topless';
-        } else if (userRequest.includes('bikini') || userRequest.includes('swimsuit') || userRequest.includes('beach')) {
-          type = 'bikini';
-        } else if (userRequest.includes('lingerie') || userRequest.includes('underwear') || userRequest.includes('sexy')) {
-          type = 'lingerie';
-        } else {
-          // Default to lingerie for NSFW requests that don't specify
-          type = 'lingerie';
-        }
+        // Default to lingerie for requests that don't specify
+        type = 'lingerie';
       }
 
       // Extract detailed context from recent chat messages
@@ -667,10 +695,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
                     {chatSessionActive && (
                       <>
                         <span>•</span>
-                        <span className={`px-1 lg:px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          chatMode === 'sfw' ? 'bg-blue-600 text-white' : 'bg-pink-600 text-white'
-                        }`}>
-                          {chatMode.toUpperCase()}
+                        <span className="px-1 lg:px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-600 text-white">
+                          FULL FREEDOM
                         </span>
                       </>
                     )}
@@ -694,7 +720,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
               <TokenBalance balance={userTokens} onClick={onBuyTokens} size="small" isCreator={isCreator} />
               {chatSessionActive && (
                 <div className={`flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full ${
-                  timeRemaining <= 5 * 60 ? 'bg-red-600' : timeRemaining <= 10 * 60 ? 'bg-yellow-600' : 'bg-green-600'
+                  timeRemaining <= 5 * 60 ? 'bg-red-600' : timeRemaining <= 10 * 60 ? 'bg-yellow-600' : 'bg-purple-600'
                 }`}>
                   <span className="text-xs lg:text-sm">⏱️</span>
                   <span className="text-xs lg:text-sm font-mono">
@@ -727,72 +753,57 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
               <h2 className="text-2xl font-bold mb-2">Start Chat with {modelName}</h2>
               <p className="text-gray-400 mb-6">30 minutes of unlimited conversation</p>
               
-              {/* Chat Mode Selection */}
-              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mb-6 w-full max-w-sm">
-                <button
-                  onClick={() => setChatMode('sfw')}
-                  className={`px-4 lg:px-6 py-3 rounded-xl font-semibold transition-all ${
-                    chatMode === 'sfw'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  SFW Chat
-                </button>
-                {isAuthenticated && (
-                  <button
-                    onClick={() => setChatMode('nsfw')}
-                    className={`px-4 lg:px-6 py-3 rounded-xl font-semibold transition-all ${
-                      chatMode === 'nsfw'
-                        ? 'bg-pink-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    NSFW Chat
-                  </button>
-                )}
+              {/* Full Freedom Chat - No Mode Selection */}
+              <div className="mb-6">
+                <div className="bg-purple-600/20 border border-purple-500/30 rounded-lg p-4">
+                  <p className="text-purple-300 text-sm font-medium">
+                    🎉 <strong>Full Freedom Chat</strong> - Uncensored conversation with complete creative freedom
+                  </p>
+                </div>
               </div>
               
               {/* Pricing Display */}
               <div className="bg-gray-800 rounded-lg p-4 mb-6">
                 <div className="flex items-center justify-center space-x-2 text-lg">
                   <span className="text-purple-400">💰</span>
-                  <span>{PRICING.CHAT[chatMode].tokens} tokens</span>
+                  <span>{PRICING.CHAT.nsfw.tokens} tokens</span>
                   <span className="text-gray-400">•</span>
-                  <span className="text-green-400">${PRICING.CHAT[chatMode].price}</span>
+                  <span className="text-green-400">${PRICING.CHAT.nsfw.price}</span>
                 </div>
                 <p className="text-gray-400 text-sm mt-2">
-                  {chatMode === 'sfw' ? 'Friendly, appropriate conversation' : 'Uncensored, adult conversation'}
+                  Uncensored conversation with complete creative freedom
                 </p>
               </div>
               
-              {!isAuthenticated && chatMode === 'nsfw' && (
-                <div className="bg-red-900/20 border border-red-600 rounded-lg p-4 mb-6">
-                  <p className="text-red-400 text-sm">
-                    🔒 NSFW chat requires authentication. Please sign in to access this mode.
-                  </p>
-                </div>
-              )}
+
             </div>
             
-            {(isCreator || userTokens >= PRICING.CHAT[chatMode].tokens) && (chatMode === 'sfw' || isAuthenticated) ? (
+            {(isCreator || userTokens >= PRICING.CHAT.nsfw.tokens) ? (
               <div className="text-center">
                 <div className="bg-green-600/20 border border-green-500/30 rounded-lg p-3 mb-4">
                   <p className="text-green-400 text-sm font-medium">
                     🎉 <strong>15 Minutes FREE</strong> - No tokens required!
                   </p>
                 </div>
-                <button
-                  onClick={startChatSession}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition-colors"
-                >
-                  Start FREE Chat Session
-                </button>
+                <div className="space-y-3">
+                  <button
+                    onClick={startChatSession}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition-colors w-full"
+                  >
+                    Start FREE Chat Session
+                  </button>
+                  <button
+                    onClick={testMemorySystem}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition-colors w-full text-sm"
+                  >
+                    Test Memory System
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="text-center">
                 <p className="text-red-400 mb-4">
-                  You need {PRICING.CHAT[chatMode].tokens - userTokens} more tokens for {chatMode.toUpperCase()} chat
+                  You need {PRICING.CHAT.nsfw.tokens - userTokens} more tokens for full freedom chat
                 </p>
                 <button
                   onClick={onBuyTokens}

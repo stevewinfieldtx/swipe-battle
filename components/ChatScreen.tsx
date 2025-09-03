@@ -414,6 +414,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           memoryContext = await memoryService.getMemoryContext(user.id, modelName);
+          console.log('Memory Context Retrieved:', memoryContext);
           
           // Get current spatial memory context and add to memoryContext
           if (currentSessionId) {
@@ -549,8 +550,25 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         onSpendTokens(cost, `Custom chat photo from ${modelName}`);
       }
 
-      // Build photoType based on chat mode - for NSFW, use 'topless' for more explicit content
-      const type: 'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude' = chatMode === 'sfw' ? 'sfw' : 'topless';
+      // Build photoType based on user's actual request and chat mode
+      const userRequest = pendingImageOffer.prompt.toLowerCase();
+      let type: 'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude' = 'sfw';
+      
+      if (chatMode === 'sfw') {
+        type = 'sfw';
+      } else {
+        // For NSFW mode, determine type based on user's request
+        if (userRequest.includes('topless') || userRequest.includes('naked') || userRequest.includes('nude')) {
+          type = 'topless';
+        } else if (userRequest.includes('bikini') || userRequest.includes('swimsuit') || userRequest.includes('beach')) {
+          type = 'bikini';
+        } else if (userRequest.includes('lingerie') || userRequest.includes('underwear') || userRequest.includes('sexy')) {
+          type = 'lingerie';
+        } else {
+          // Default to lingerie for NSFW requests that don't specify
+          type = 'lingerie';
+        }
+      }
 
       // Extract detailed context from recent chat messages
       const chatContext = extractClothingAndActivity(messages);
@@ -562,8 +580,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       const { data: { user } } = await supabase.auth.getUser();
       
       console.log('Image Generation Debug:', { 
+        userRequest: pendingImageOffer.prompt,
+        selectedPhotoType: type,
+        chatMode: chatMode,
         enhancedPrompt, 
-        photoType: type, 
         modelName, 
         userEmail: user?.email, 
         userId: user?.id,

@@ -144,7 +144,7 @@ async function buildEnhancedPrompt(userPrompt: string, photoType: string, modelN
     : `Stunning portrait of a beautiful woman named ${modelName}, ${userPrompt}, `;
   
   // Add chat context if provided (clothing and activity from conversation)
-  if (chatContext && chatContext !== 'No specific clothing or activity mentioned in recent chat') {
+  if (chatContext && chatContext !== 'No specific context mentioned in recent conversation') {
     enhanced += `${chatContext}, `
   }
 

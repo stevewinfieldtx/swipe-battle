@@ -20,18 +20,31 @@ export class MemoryService {
 
     // Anchor patterns (permanent identity markers)
     const anchorPatterns = [
-      // Personal info
-      { pattern: /(?:i'm|i am|my name is|call me)\s+([a-zA-Z\s]+)/i, category: 'personal' as const, type: 'anchor' as const },
+      // Personal info - names
+      { pattern: /(?:i'm|i am|my name is|call me|i go by)\s+([a-zA-Z\s]+)/i, category: 'personal' as const, type: 'anchor' as const },
+      { pattern: /(?:you can call me|just call me)\s+([a-zA-Z\s]+)/i, category: 'personal' as const, type: 'anchor' as const },
+      { pattern: /(?:everyone calls me|people call me)\s+([a-zA-Z\s]+)/i, category: 'personal' as const, type: 'anchor' as const },
+      
+      // Family - kids
+      { pattern: /(?:i have|i've got|i got)\s+(\d+)\s+(?:kids?|children)/i, category: 'family' as const, type: 'anchor' as const },
+      { pattern: /(?:i have|i've got|i got)\s+(?:a|an|one|two|three|four|five)\s+(?:kid|child|son|daughter|baby|toddler)/i, category: 'family' as const, type: 'anchor' as const },
+      { pattern: /(?:my|i have a)\s+(?:son|daughter|kid|child|baby|toddler)\s+(?:named|called)\s+([a-zA-Z\s]+)/i, category: 'family' as const, type: 'anchor' as const },
+      { pattern: /(?:i'm a|i am a)\s+(?:parent|mom|dad|mother|father)/i, category: 'family' as const, type: 'anchor' as const },
+      
+      // Work
       { pattern: /(?:i work as|i'm a|my job is|i do)\s+([a-zA-Z\s]+)/i, category: 'personal' as const, type: 'anchor' as const },
-      { pattern: /(?:i live in|i'm from|my hometown is)\s+([a-zA-Z\s]+)/i, category: 'personal' as const, type: 'anchor' as const },
-      { pattern: /(?:i'm married|i'm single|i have a girlfriend|i have a boyfriend)/i, category: 'personal' as const, type: 'anchor' as const },
+      { pattern: /(?:i work at|i work for)\s+([a-zA-Z\s]+)/i, category: 'personal' as const, type: 'anchor' as const },
+      
+      // Location
+      { pattern: /(?:i live in|i'm from|my hometown is|i'm based in)\s+([a-zA-Z\s]+)/i, category: 'personal' as const, type: 'anchor' as const },
+      
+      // Relationship status
+      { pattern: /(?:i'm married|i'm single|i have a girlfriend|i have a boyfriend|i'm divorced|i'm widowed)/i, category: 'personal' as const, type: 'anchor' as const },
+      { pattern: /(?:my wife|my husband|my partner)\s+(?:is|called|named)\s+([a-zA-Z\s]+)/i, category: 'family' as const, type: 'anchor' as const },
       
       // Preferences
       { pattern: /(?:i like|i love|i prefer|my favorite)\s+([a-zA-Z\s]+)/i, category: 'preferences' as const, type: 'anchor' as const },
-      { pattern: /(?:call me|you can call me)\s+([a-zA-Z\s]+)/i, category: 'relationship' as const, type: 'anchor' as const },
-      
-      // Kinks/curiosities
-      { pattern: /(?:i'm into|i like|i'm curious about)\s+([a-zA-Z\s]+)/i, category: 'preferences' as const, type: 'anchor' as const },
+      { pattern: /(?:i'm into|i'm curious about)\s+([a-zA-Z\s]+)/i, category: 'preferences' as const, type: 'anchor' as const },
     ];
 
     // Trigger patterns (temporary/situational)
@@ -95,6 +108,8 @@ export class MemoryService {
   async storeMemoryNuggets(nuggets: MemoryNugget[]): Promise<void> {
     if (nuggets.length === 0) return;
 
+    console.log('Storing memory nuggets:', nuggets);
+
     try {
       const { error } = await supabase
         .from('memory_nuggets')
@@ -106,6 +121,8 @@ export class MemoryService {
 
       if (error) {
         console.error('Error storing memory nuggets:', error);
+      } else {
+        console.log('Successfully stored memory nuggets');
       }
     } catch (error) {
       console.error('Error storing memory nuggets:', error);
@@ -115,6 +132,8 @@ export class MemoryService {
   // Get memory context for a user and model
   async getMemoryContext(userId: string, modelName: string): Promise<MemoryContext> {
     try {
+      console.log('Getting memory context for:', { userId, modelName });
+      
       const { data, error } = await supabase
         .from('memory_nuggets')
         .select('*')
@@ -129,11 +148,14 @@ export class MemoryService {
 
       const memories = data?.map(this.mapDbToMemoryNugget) || [];
       
-      return {
+      const context = {
         anchors: memories.filter(m => m.type === 'anchor'),
         triggers: memories.filter(m => m.type === 'trigger' && m.clarity > 20), // Only clear triggers
         recentMemories: memories.slice(0, 10) // Last 10 accessed
       };
+      
+      console.log('Memory context retrieved:', context);
+      return context;
     } catch (error) {
       console.error('Error fetching memory context:', error);
       return { anchors: [], triggers: [], recentMemories: [] };

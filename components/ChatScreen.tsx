@@ -79,90 +79,121 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Extract clothing and activity context from recent conversation that led to image request
+  // Extract detailed context from recent conversation for image generation
   const extractClothingAndActivity = (messages: Message[]): string => {
-    // Look at the last few messages leading up to the image request
-    const recentMessages = messages.slice(-6); // Last 6 messages (3 exchanges)
+    // Look at the last 10 messages for more context
+    const recentMessages = messages.slice(-10);
     
-    // Focus on the most recent assistant messages that likely prompted the image request
+    // Get all assistant messages (AI describing herself)
     const assistantMessages = recentMessages
       .filter(m => m.role === 'assistant')
-      .map(m => m.content)
-      .reverse(); // Most recent first
+      .map(m => m.content);
     
+    let clothingDescription = '';
+    let locationDescription = '';
+    let activityDescription = '';
+    let moodDescription = '';
+    
+    // Enhanced keywords for better context extraction
     const clothingKeywords = [
-      // Clothing items
       'wearing', 'dressed in', 'outfit', 'clothes', 'shirt', 'blouse', 'dress', 'skirt', 'pants', 'jeans', 
       'shorts', 'top', 'sweater', 'jacket', 'coat', 'bikini', 'swimsuit', 'lingerie', 'underwear', 
       'bra', 'panties', 'stockings', 'heels', 'shoes', 'boots', 'sandals', 'jewelry', 'necklace', 
       'earrings', 'bracelet', 'ring', 'watch', 'hat', 'cap', 'scarf', 'gloves', 'sunglasses',
-      // Colors and materials
       'black', 'white', 'red', 'blue', 'green', 'pink', 'purple', 'yellow', 'gray', 'brown',
-      'silk', 'cotton', 'lace', 'leather', 'denim', 'satin', 'velvet', 'linen'
+      'silk', 'cotton', 'lace', 'leather', 'denim', 'satin', 'velvet', 'linen', 'tight', 'loose',
+      'short', 'long', 'sleeveless', 'sleeved', 'strapless', 'v-neck', 'crew neck'
+    ];
+    
+    const locationKeywords = [
+      'at the', 'in the', 'on the', 'beach', 'pool', 'park', 'home', 'kitchen', 'bedroom', 'bathroom', 
+      'office', 'restaurant', 'cafe', 'bar', 'club', 'gym', 'yoga', 'studio', 'garden', 'balcony',
+      'living room', 'dining room', 'shower', 'bath', 'bed', 'couch', 'chair', 'desk', 'mirror',
+      'outside', 'indoors', 'outdoors', 'sunset', 'sunrise', 'morning', 'afternoon', 'evening', 'night'
     ];
     
     const activityKeywords = [
-      // Activities and locations
-      'doing', 'at the', 'in the', 'on the', 'sitting', 'standing', 'lying', 'walking', 'running',
-      'dancing', 'swimming', 'cooking', 'reading', 'writing', 'working', 'studying', 'exercising',
-      'yoga', 'gym', 'beach', 'pool', 'park', 'home', 'kitchen', 'bedroom', 'bathroom', 'office',
-      'restaurant', 'cafe', 'bar', 'club', 'shopping', 'driving', 'traveling', 'vacation',
-      'morning', 'afternoon', 'evening', 'night', 'shower', 'bath', 'bed', 'couch', 'chair'
+      'sitting', 'standing', 'lying', 'walking', 'running', 'dancing', 'swimming', 'cooking', 
+      'reading', 'writing', 'working', 'studying', 'exercising', 'yoga', 'stretching', 'posing',
+      'relaxing', 'resting', 'sleeping', 'waking up', 'getting ready', 'getting dressed',
+      'looking in the mirror', 'applying makeup', 'brushing hair', 'drinking', 'eating'
     ];
     
-    let clothingContext = '';
-    let activityContext = '';
+    const moodKeywords = [
+      'happy', 'sad', 'excited', 'relaxed', 'tired', 'energetic', 'confident', 'shy', 'playful',
+      'serious', 'flirty', 'romantic', 'mysterious', 'cheerful', 'calm', 'nervous', 'proud'
+    ];
     
-    // Prioritize the most recent message first (likely the one that prompted the image request)
-    for (const message of assistantMessages) {
+    // Process messages in reverse order (most recent first)
+    for (let i = assistantMessages.length - 1; i >= 0; i--) {
+      const message = assistantMessages[i];
       const lowerMessage = message.toLowerCase();
       
-      // Check for clothing mentions in this message
-      let foundClothing = false;
-      clothingKeywords.forEach(keyword => {
-        if (lowerMessage.includes(keyword)) {
-          foundClothing = true;
-          // Extract relevant sentences containing the keyword
-          const sentences = message.split(/[.!?]/);
-          sentences.forEach(sentence => {
-            if (sentence.toLowerCase().includes(keyword) && !clothingContext.includes(sentence.trim())) {
-              clothingContext += sentence.trim() + '. ';
-            }
-          });
+      // Extract clothing context
+      if (!clothingDescription) {
+        const clothingSentences = message.split(/[.!?]/).filter(sentence => {
+          const lowerSentence = sentence.toLowerCase();
+          return clothingKeywords.some(keyword => lowerSentence.includes(keyword));
+        });
+        
+        if (clothingSentences.length > 0) {
+          clothingDescription = clothingSentences.join('. ').trim();
         }
-      });
+      }
       
-      // Check for activity mentions in this message
-      let foundActivity = false;
-      activityKeywords.forEach(keyword => {
-        if (lowerMessage.includes(keyword)) {
-          foundActivity = true;
-          // Extract relevant sentences containing the keyword
-          const sentences = message.split(/[.!?]/);
-          sentences.forEach(sentence => {
-            if (sentence.toLowerCase().includes(keyword) && !activityContext.includes(sentence.trim())) {
-              activityContext += sentence.trim() + '. ';
-            }
-          });
+      // Extract location context
+      if (!locationDescription) {
+        const locationSentences = message.split(/[.!?]/).filter(sentence => {
+          const lowerSentence = sentence.toLowerCase();
+          return locationKeywords.some(keyword => lowerSentence.includes(keyword));
+        });
+        
+        if (locationSentences.length > 0) {
+          locationDescription = locationSentences.join('. ').trim();
         }
-      });
+      }
       
-      // If we found rich context in this recent message, prioritize it and don't need to go further back
-      if (foundClothing && foundActivity) {
-        break;
+      // Extract activity context
+      if (!activityDescription) {
+        const activitySentences = message.split(/[.!?]/).filter(sentence => {
+          const lowerSentence = sentence.toLowerCase();
+          return activityKeywords.some(keyword => lowerSentence.includes(keyword));
+        });
+        
+        if (activitySentences.length > 0) {
+          activityDescription = activitySentences.join('. ').trim();
+        }
+      }
+      
+      // Extract mood context
+      if (!moodDescription) {
+        const moodSentences = message.split(/[.!?]/).filter(sentence => {
+          const lowerSentence = sentence.toLowerCase();
+          return moodKeywords.some(keyword => lowerSentence.includes(keyword));
+        });
+        
+        if (moodSentences.length > 0) {
+          moodDescription = moodSentences.join('. ').trim();
+        }
       }
     }
     
-    // Combine contexts
+    // Build comprehensive context
     let context = '';
-    if (clothingContext.trim()) {
-      context += `Clothing: ${clothingContext.trim()} `;
+    if (clothingDescription) {
+      context += `Wearing: ${clothingDescription}. `;
     }
-    if (activityContext.trim()) {
-      context += `Activity: ${activityContext.trim()}`;
+    if (locationDescription) {
+      context += `Location: ${locationDescription}. `;
+    }
+    if (activityDescription) {
+      context += `Activity: ${activityDescription}. `;
+    }
+    if (moodDescription) {
+      context += `Mood: ${moodDescription}. `;
     }
     
-    return context.trim() || 'No specific clothing or activity mentioned in recent chat';
+    return context.trim() || 'No specific context mentioned in recent conversation';
   };
 
   useEffect(() => {
@@ -392,14 +423,18 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
               currentSessionId
             );
             
+            console.log('Spatial Memory Debug:', { sessionState, spatialMemory, currentSessionId });
+            
             // Add spatial memory to the memory context object
             if (memoryContext) {
-              memoryContext.sessionState = sessionState;
-              memoryContext.spatialMemory = spatialMemory;
+              // Add spatial memory properties to existing memory context
+              (memoryContext as any).sessionState = sessionState;
+              (memoryContext as any).spatialMemory = spatialMemory;
             } else {
               memoryContext = {
                 anchors: [],
                 triggers: [],
+                recentMemories: [],
                 sessionState: sessionState,
                 spatialMemory: spatialMemory
               };
@@ -450,6 +485,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
                 modelName, 
                 currentSessionId
               );
+
+              console.log('Spatial Memory Updates Debug:', { 
+                aiResponse: data.response, 
+                updates, 
+                currentSessionId 
+              });
 
               if (updates.sessionUpdates) {
                 await spatialMemoryService.updateSessionState(
@@ -508,17 +549,26 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         onSpendTokens(cost, `Custom chat photo from ${modelName}`);
       }
 
-      // Build a loose photoType from current chat mode only to stay in-character but keep UX simple
-      const type: 'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude' = chatMode === 'sfw' ? 'sfw' : 'lingerie';
+      // Build photoType based on chat mode - for NSFW, use 'topless' for more explicit content
+      const type: 'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude' = chatMode === 'sfw' ? 'sfw' : 'topless';
 
-      // Extract clothing and activity context from recent chat messages
+      // Extract detailed context from recent chat messages
       const chatContext = extractClothingAndActivity(messages);
       
-      // Enhanced prompt with chat context
-      const enhancedPrompt = `${pendingImageOffer.prompt}. Context from chat: ${chatContext}. Generate a full body picture showing the complete outfit and activity mentioned.`;
+      // Enhanced prompt with detailed chat context
+      const enhancedPrompt = `${pendingImageOffer.prompt}. ${chatContext} Generate a full body picture that accurately reflects the current conversation context, showing the exact clothing, location, and activity described.`;
 
       // Get user info for image generation
       const { data: { user } } = await supabase.auth.getUser();
+      
+      console.log('Image Generation Debug:', { 
+        enhancedPrompt, 
+        photoType: type, 
+        modelName, 
+        userEmail: user?.email, 
+        userId: user?.id,
+        chatContext 
+      });
       
       const { data, error } = await supabase.functions.invoke('generate-image', {
         body: {

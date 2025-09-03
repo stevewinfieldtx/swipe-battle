@@ -71,6 +71,26 @@ export const PRICING = {
 
 export type ChatMode = 'sfw' | 'nsfw';
 
+// Memory System Types
+export interface MemoryNugget {
+  id: string;
+  userId: string;
+  modelName: string;
+  content: string;
+  type: 'anchor' | 'trigger';
+  category: 'personal' | 'relationship' | 'preferences' | 'emotional' | 'situational';
+  clarity: number; // 0-100, only for triggers
+  createdAt: Date;
+  lastAccessed: Date;
+  tags: string[];
+}
+
+export interface MemoryContext {
+  anchors: MemoryNugget[];
+  triggers: MemoryNugget[];
+  recentMemories: MemoryNugget[];
+}
+
 export interface ModelPersonality {
   model_id: number;
   name: string;

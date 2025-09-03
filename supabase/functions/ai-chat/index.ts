@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, modelName, persona, accessLevel, history } = await req.json()
+    const { message, modelName, persona, accessLevel, history, memoryContext } = await req.json()
     
     console.log('AI Chat request:', { message: message?.substring(0, 50), modelName })
     
@@ -49,6 +49,30 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
 
     const personaJson = persona ?? null
     const level = typeof accessLevel === 'string' ? accessLevel : 'FREE'
+    
+    // Generate memory-enhanced prompt
+    let memoryPrompt = ''
+    if (memoryContext && memoryContext.anchors && memoryContext.triggers) {
+      if (memoryContext.anchors.length > 0) {
+        memoryPrompt += `\n\nIMPORTANT USER ANCHORS (permanent facts about this user):\n`
+        memoryContext.anchors.forEach((anchor: any) => {
+          memoryPrompt += `- ${anchor.content}\n`
+        })
+      }
+      
+      if (memoryContext.triggers.length > 0) {
+        memoryPrompt += `\n\nCURRENT USER CONTEXT (recent/situational info):\n`
+        memoryContext.triggers.forEach((trigger: any) => {
+          const clarity = trigger.clarity
+          const certainty = clarity > 80 ? '' : clarity > 60 ? ' (I think)' : ' (I believe)'
+          memoryPrompt += `- ${trigger.content}${certainty}\n`
+        })
+      }
+      
+      if (memoryPrompt) {
+        memoryPrompt += `\nUse this information to make the conversation more personal, consistent, and emotionally rich. Reference these details naturally when appropriate. Never mention the memory system itself.`
+      }
+    }
 
     // Read LLM config and system prompt from Supabase Storage (config bucket)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -91,7 +115,7 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
         messages: [
           {
             role: "system",
-            content: `${adminSystemPrompt ? adminSystemPrompt + '\n\n' : ''}${fanvueSystemPrompt}\n\nPERSONA_JSON (strictly follow): ${personaJson ? JSON.stringify(personaJson) : '{"name":"'+modelName+'"}'}\nMODEL_NAME: ${modelName}\nACCESS_LEVEL: ${level}\nInstructions: Stay fully in character as defined by PERSONA_JSON and ACCESS_LEVEL. Keep replies under ${maxTokens} tokens.`
+            content: `${adminSystemPrompt ? adminSystemPrompt + '\n\n' : ''}${fanvueSystemPrompt}${memoryPrompt}\n\nPERSONA_JSON (strictly follow): ${personaJson ? JSON.stringify(personaJson) : '{"name":"'+modelName+'"}'}\nMODEL_NAME: ${modelName}\nACCESS_LEVEL: ${level}\nInstructions: Stay fully in character as defined by PERSONA_JSON and ACCESS_LEVEL. Keep replies under ${maxTokens} tokens.`
           },
           ...(Array.isArray(history) ? history.slice(-10) : []),
           { role: "user", content: message }

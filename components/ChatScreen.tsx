@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ModelPersonality, PRICING, ChatMode } from '../types';
 import { supabase, BUCKET_NAME } from '../supabaseClient';
 import TokenBalance from './TokenBalance';
+import { memoryService } from '../services/memoryService';
 
 interface Message {
   id: string;
@@ -321,6 +322,23 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     setInputMessage('');
     setIsLoading(true);
 
+    // Extract and store memory nuggets from user message
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const memoryNuggets = memoryService.extractMemoryNuggets(
+          userMessage.content, 
+          user.id, 
+          modelName
+        );
+        if (memoryNuggets.length > 0) {
+          await memoryService.storeMemoryNuggets(memoryNuggets);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing memory nuggets:', error);
+    }
+
     // If the user is asking for a selfie/picture, offer custom image flow
     const text = userMessage.content.toLowerCase();
     const mentionsImage = /(selfie|pic|picture|photo|image|snapshot)/i.test(text);
@@ -341,6 +359,17 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
 
     // Call Supabase Edge Function for AI chat
     try {
+      // Get memory context for personalized responses
+      let memoryContext = null;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          memoryContext = await memoryService.getMemoryContext(user.id, modelName);
+        }
+      } catch (error) {
+        console.error('Error getting memory context:', error);
+      }
+
       // Include a short rolling history so the model maintains context
       const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }));
       const response = await supabase.functions.invoke('ai-chat', {
@@ -350,7 +379,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
           // Provide persona JSON and access level so backend can build proper system prompt
           persona: personality || null,
           accessLevel: chatMode === 'sfw' ? 'FREE' : 'MONTHLY',
-          history
+          history,
+          memoryContext: memoryContext
         }
       });
 

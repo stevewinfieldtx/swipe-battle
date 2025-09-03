@@ -15,6 +15,8 @@ export class MemoryService {
   extractMemoryNuggets(message: string, userId: string, modelName: string): MemoryNugget[] {
     const nuggets: MemoryNugget[] = [];
     const lowerMessage = message.toLowerCase();
+    
+    console.log('Extracting memory nuggets from:', message);
 
     // Anchor patterns (permanent identity markers)
     const anchorPatterns = [
@@ -85,6 +87,7 @@ export class MemoryService {
       }
     });
 
+    console.log('Extracted memory nuggets:', nuggets);
     return nuggets;
   }
 

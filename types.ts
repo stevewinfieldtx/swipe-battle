@@ -89,6 +89,52 @@ export interface MemoryContext {
   anchors: MemoryNugget[];
   triggers: MemoryNugget[];
   recentMemories: MemoryNugget[];
+  sessionState: SessionState;
+  spatialMemory: SpatialMemory;
+}
+
+// Session State Memory - tracks what the model is doing/wearing during the conversation
+export interface SessionState {
+  id: string;
+  userId: string;
+  modelName: string;
+  sessionId: string;
+  currentActivity: string;
+  clothing: {
+    top: string;
+    bottom: string;
+    underwear: string;
+    accessories: string[];
+    shoes: string;
+  };
+  hairStyle: string;
+  makeup: string;
+  mood: string;
+  energy: 'low' | 'medium' | 'high';
+  lastUpdated: Date;
+}
+
+// Spatial Memory - tracks where the model's body parts are positioned
+export interface SpatialMemory {
+  id: string;
+  userId: string;
+  modelName: string;
+  sessionId: string;
+  bodyPosition: {
+    wholeBody: string; // "sitting on couch", "standing by window", "lying on bed"
+    leftFoot: string;  // "on floor", "in your lap", "crossed over right leg"
+    rightFoot: string;
+    leftHand: string;  // "resting on armrest", "touching your arm", "playing with hair"
+    rightHand: string;
+    head: string;      // "turned toward you", "looking down", "resting on pillow"
+    torso: string;     // "leaning forward", "relaxed against backrest", "turned sideways"
+  };
+  proximity: {
+    distanceToUser: 'close' | 'medium' | 'far';
+    touching: string[]; // ["your arm", "your leg", "your hand"]
+    facing: 'toward' | 'away' | 'sideways';
+  };
+  lastUpdated: Date;
 }
 
 export interface ModelPersonality {

@@ -32,17 +32,7 @@ serve(async (req) => {
       throw new Error('RUNWARE_API_KEY not configured')
     }
 
-    // Enhanced prompt based on photo type, model, and chat context
-    const enhancedPrompt = await buildEnhancedPrompt(prompt, photoType, modelName, chatContext)
-
-    // Call Runware API using their SDK pattern
-    const imageResponse = await generateImageWithRunware(enhancedPrompt, photoType)
-
-    if (!imageResponse.success) {
-      throw new Error(`Image generation failed: ${imageResponse.error}`)
-    }
-
-    // Store the request in Supabase
+    // Check user tokens before generating image
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -53,6 +43,44 @@ serve(async (req) => {
         },
       }
     )
+
+    // Get user's current token balance
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('user_tokens')
+      .select('tokens')
+      .eq('user_id', userId)
+      .single()
+
+    if (userError || !userData) {
+      throw new Error('User not found or no token balance')
+    }
+
+    const tokenCost = 2; // All images cost 2 tokens
+    if (userData.tokens < tokenCost) {
+      throw new Error('Insufficient tokens. You need 2 tokens to generate an image.')
+    }
+
+    // Deduct tokens before generating image
+    const { error: deductError } = await supabaseAdmin
+      .from('user_tokens')
+      .update({ tokens: userData.tokens - tokenCost })
+      .eq('user_id', userId)
+
+    if (deductError) {
+      throw new Error('Failed to deduct tokens')
+    }
+
+    // Enhanced prompt based on photo type, model, and chat context
+    const enhancedPrompt = await buildEnhancedPrompt(prompt, photoType, modelName, chatContext)
+
+    // Call Runware API using their SDK pattern
+    const imageResponse = await generateImageWithRunware(enhancedPrompt, photoType)
+
+    if (!imageResponse.success) {
+      throw new Error(`Image generation failed: ${imageResponse.error}`)
+    }
+
+    // Store the request in Supabase (using existing supabaseAdmin client)
 
     // Update the custom photo request with the generated image
     const { error: updateError } = await supabaseAdmin
@@ -168,6 +196,7 @@ async function generateImageWithRunware(prompt: string, photoType: string) {
       steps: 28,
       scheduler: "DPMSolverSinglestepScheduler",
       numberResults: 1,
+      seed: modelName.split('').reduce((a, b) => a + b.charCodeAt(0), 0) % 1000000, // Consistent seed based on model name
     }
 
     console.log(`Calling requestImages with model: ${RUNWARE_MODEL}`)

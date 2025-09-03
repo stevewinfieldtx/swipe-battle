@@ -3,6 +3,7 @@ import { ModelPersonality, PRICING, ChatMode } from '../types';
 import { supabase, BUCKET_NAME } from '../supabaseClient';
 import TokenBalance from './TokenBalance';
 import { memoryService } from '../services/memoryService';
+import { spatialMemoryService } from '../services/spatialMemoryService';
 
 interface Message {
   id: string;
@@ -43,6 +44,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [pendingImageOffer, setPendingImageOffer] = useState<{ prompt: string } | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [showMobileImages, setShowMobileImages] = useState(false);
 
   const downloadAsJpg = async (imageUrl: string, filename: string) => {
     try {
@@ -248,7 +251,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     return () => clearInterval(interval);
   }, [chatSessionActive, showTimeWarning]);
 
-  const startChatSession = () => {
+  const startChatSession = async () => {
     const currentPricing = PRICING.CHAT[chatMode];
     
     // Free 15 minutes for everyone (no tokens required)
@@ -261,6 +264,21 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
     // No tokens spent for free 15-minute session
     if (!isCreator && currentPricing.tokens > 0) {
       onSpendTokens(currentPricing.tokens, `15-minute ${chatMode.toUpperCase()} chat with ${modelName}`);
+    }
+    
+    // Generate a unique session ID
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentSessionId(sessionId);
+    
+    // Initialize spatial memory for this session
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await spatialMemoryService.initializeSessionState(user.id, modelName, sessionId);
+        await spatialMemoryService.initializeSpatialMemory(user.id, modelName, sessionId);
+      }
+    } catch (error) {
+      console.error('Error initializing spatial memory:', error);
     }
     
     setChatSessionActive(true);
@@ -283,10 +301,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   useEffect(() => {
     const loadPersonality = async () => {
       try {
-        const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=get-model-data`, {
+        const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/admin-config?action=get-model-data', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${supabase.supabaseKey}`,
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ modelName })
@@ -365,6 +383,28 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           memoryContext = await memoryService.getMemoryContext(user.id, modelName);
+          
+          // Get current spatial memory context and add to memoryContext
+          if (currentSessionId) {
+            const { sessionState, spatialMemory } = await spatialMemoryService.getCurrentState(
+              user.id, 
+              modelName, 
+              currentSessionId
+            );
+            
+            // Add spatial memory to the memory context object
+            if (memoryContext) {
+              memoryContext.sessionState = sessionState;
+              memoryContext.spatialMemory = spatialMemory;
+            } else {
+              memoryContext = {
+                anchors: [],
+                triggers: [],
+                sessionState: sessionState,
+                spatialMemory: spatialMemory
+              };
+            }
+          }
         }
       } catch (error) {
         console.error('Error getting memory context:', error);
@@ -398,6 +438,41 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         };
 
         setMessages(prev => [...prev, aiMessage]);
+
+        // Extract and update spatial memory from AI response
+        if (currentSessionId) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const updates = spatialMemoryService.extractSpatialUpdates(
+                data.response, 
+                user.id, 
+                modelName, 
+                currentSessionId
+              );
+
+              if (updates.sessionUpdates) {
+                await spatialMemoryService.updateSessionState(
+                  user.id, 
+                  modelName, 
+                  currentSessionId, 
+                  updates.sessionUpdates
+                );
+              }
+
+              if (updates.spatialUpdates) {
+                await spatialMemoryService.updateSpatialMemory(
+                  user.id, 
+                  modelName, 
+                  currentSessionId, 
+                  updates.spatialUpdates
+                );
+              }
+            }
+          } catch (error) {
+            console.error('Error updating spatial memory:', error);
+          }
+        }
       } else {
         throw new Error(data?.error || 'AI API failed');
       }
@@ -442,13 +517,16 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       // Enhanced prompt with chat context
       const enhancedPrompt = `${pendingImageOffer.prompt}. Context from chat: ${chatContext}. Generate a full body picture showing the complete outfit and activity mentioned.`;
 
+      // Get user info for image generation
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { data, error } = await supabase.functions.invoke('generate-image', {
         body: {
           prompt: enhancedPrompt,
           photoType: type,
           modelName: modelName,
-          userEmail: '',
-          userId: null,
+          userEmail: user?.email || '',
+          userId: user?.id || null,
           chatContext: chatContext // Pass context separately too
         }
       });
@@ -491,33 +569,35 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   };
 
   return (
-    <div className="h-full flex bg-gray-900 text-white">
-      {/* Left Side - Chat Interface */}
-      <div className="w-1/2 flex flex-col border-r border-gray-700">
+    <div className="h-full flex flex-col lg:flex-row bg-gray-900 text-white">
+      {/* Chat Interface */}
+      <div className="flex-1 lg:w-1/2 flex flex-col border-r-0 lg:border-r border-gray-700">
         {/* Header */}
-        <div className="bg-gray-800 border-b border-gray-700 p-4">
+        <div className="bg-gray-800 border-b border-gray-700 p-3 lg:p-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
+            <div className="flex items-center min-w-0 flex-1">
               <button 
                 onClick={onBack}
-                className="flex items-center text-purple-400 hover:text-purple-300 transition-colors mr-4"
+                className="flex items-center text-purple-400 hover:text-purple-300 transition-colors mr-2 lg:mr-4 flex-shrink-0"
               >
-                <span className="mr-2">←</span> Back
+                <span className="mr-1 lg:mr-2">←</span> 
+                <span className="hidden sm:inline">Back</span>
               </button>
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-white font-bold">
+              <div className="flex items-center min-w-0">
+                <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center mr-2 lg:mr-3 flex-shrink-0">
+                  <span className="text-white font-bold text-sm lg:text-base">
                     {modelName.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <div>
-                  <h1 className="text-xl font-bold">Chat with {modelName}</h1>
-                  <div className="flex items-center space-x-2 text-sm text-gray-400">
-                    <span>Powered by Llama 3 70B</span>
+                <div className="min-w-0">
+                  <h1 className="text-lg lg:text-xl font-bold truncate">Chat with {modelName}</h1>
+                  <div className="flex items-center space-x-1 lg:space-x-2 text-xs lg:text-sm text-gray-400">
+                    <span className="hidden sm:inline">Powered by Llama 3 70B</span>
+                    <span className="sm:hidden">Llama 3</span>
                     {chatSessionActive && (
                       <>
                         <span>•</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        <span className={`px-1 lg:px-2 py-0.5 rounded-full text-xs font-semibold ${
                           chatMode === 'sfw' ? 'bg-blue-600 text-white' : 'bg-pink-600 text-white'
                         }`}>
                           {chatMode.toUpperCase()}
@@ -529,14 +609,25 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
+              {/* Mobile image toggle button */}
+              <button
+                onClick={() => setShowMobileImages(!showMobileImages)}
+                className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
+                title="View photos"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </button>
+              
               <TokenBalance balance={userTokens} onClick={onBuyTokens} size="small" isCreator={isCreator} />
               {chatSessionActive && (
-                <div className={`flex items-center space-x-2 px-3 py-1 rounded-full ${
+                <div className={`flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full ${
                   timeRemaining <= 5 * 60 ? 'bg-red-600' : timeRemaining <= 10 * 60 ? 'bg-yellow-600' : 'bg-green-600'
                 }`}>
-                  <span className="text-sm">⏱️</span>
-                  <span className="text-sm font-mono">
+                  <span className="text-xs lg:text-sm">⏱️</span>
+                  <span className="text-xs lg:text-sm font-mono">
                     {timeRemaining > 0 ? formatTimeRemaining(timeRemaining) : 'OVERTIME'}
                   </span>
                 </div>
@@ -554,7 +645,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         </div>
 
         {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-3 lg:space-y-4">
         {!chatSessionActive && !sessionExpired && (
           <div className="flex flex-col items-center justify-center h-full space-y-6">
             <div className="text-center">
@@ -567,10 +658,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
               <p className="text-gray-400 mb-6">30 minutes of unlimited conversation</p>
               
               {/* Chat Mode Selection */}
-              <div className="flex space-x-4 mb-6">
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mb-6 w-full max-w-sm">
                 <button
                   onClick={() => setChatMode('sfw')}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                  className={`px-4 lg:px-6 py-3 rounded-xl font-semibold transition-all ${
                     chatMode === 'sfw'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -581,7 +672,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
                 {isAuthenticated && (
                   <button
                     onClick={() => setChatMode('nsfw')}
-                    className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                    className={`px-4 lg:px-6 py-3 rounded-xl font-semibold transition-all ${
                       chatMode === 'nsfw'
                         ? 'bg-pink-600 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -670,7 +761,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl rounded-2xl px-4 py-3 ${
+              className={`max-w-[85%] sm:max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl rounded-2xl px-3 lg:px-4 py-2 lg:py-3 ${
                 message.role === 'user'
                   ? 'bg-purple-600 text-white'
                   : 'bg-gray-700 text-gray-100'
@@ -748,25 +839,25 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       </div>
 
       {/* Input Area */}
-      <div className="bg-gray-800 border-t border-gray-700 p-4">
-        <div className="flex space-x-3">
+      <div className="bg-gray-800 border-t border-gray-700 p-3 lg:p-4">
+        <div className="flex space-x-2 lg:space-x-3">
           <div className="flex-1 relative">
             <textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder={`Message ${modelName}...`}
-              className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+              className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 lg:px-4 py-2 lg:py-3 pr-10 lg:pr-12 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm lg:text-base"
               rows={1}
-              style={{ minHeight: '48px', maxHeight: '120px' }}
+              style={{ minHeight: '44px', maxHeight: '120px' }}
               disabled={isLoading}
             />
             <button
               onClick={sendMessage}
               disabled={!inputMessage.trim() || isLoading || !chatSessionActive || sessionExpired}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:opacity-50 text-white p-2 rounded-lg transition-colors"
+              className="absolute right-1 lg:right-2 top-1/2 transform -translate-y-1/2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:opacity-50 text-white p-1.5 lg:p-2 rounded-lg transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
             </button>
@@ -798,8 +889,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         </div>
       </div>
 
-      {/* Right Side - Image Gallery */}
-      <div className="w-1/2 bg-black flex items-center justify-center relative overflow-hidden">
+      {/* Image Gallery - Hidden on mobile, shown on desktop */}
+      <div className="hidden lg:flex lg:w-1/2 bg-black items-center justify-center relative overflow-hidden">
         <div className="w-full max-w-sm aspect-[3/4] relative">
         {imagesLoading ? (
             <div className="flex flex-col items-center justify-center space-y-4 h-full">
@@ -861,6 +952,93 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         )}
         </div>
       </div>
+
+      {/* Mobile Image Overlay */}
+      {showMobileImages && (
+        <div className="lg:hidden fixed inset-0 bg-black z-50 flex flex-col">
+          {/* Mobile image header */}
+          <div className="bg-gray-800 p-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white">{modelName}'s Photos</h2>
+            <button
+              onClick={() => setShowMobileImages(false)}
+              className="p-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          {/* Mobile image gallery */}
+          <div className="flex-1 flex items-center justify-center p-4">
+            {imagesLoading ? (
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                <p className="text-gray-400">Loading {modelName}'s photos...</p>
+              </div>
+            ) : modelImages.length > 0 ? (
+              <div className="w-full max-w-sm aspect-[3/4] relative">
+                <img 
+                  src={modelImages[currentImageIndex]} 
+                  alt={`${modelName} - Image ${currentImageIndex + 1}`}
+                  className="w-full h-full object-cover rounded-lg"
+                  style={{ 
+                    objectPosition: 'center top',
+                    filter: 'brightness(0.95)' 
+                  }}
+                />
+                
+                {/* Image info overlay */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-b-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-white text-lg font-bold">{modelName}</h3>
+                      <p className="text-gray-300 text-xs">SFW Gallery</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-white/70 text-xs">
+                        {currentImageIndex + 1} / {modelImages.length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Navigation arrows */}
+                {modelImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setCurrentImageIndex(prev => prev === 0 ? modelImages.length - 1 : prev - 1)}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setCurrentImageIndex(prev => (prev + 1) % modelImages.length)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center">
+                  <span className="text-gray-400 text-2xl">📷</span>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-lg">No images available</p>
+                  <p className="text-gray-500 text-sm">Upload some photos to see them here</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -66,15 +66,11 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
   const loadAvailableLLMs = async () => {
     try {
       setLlmLoading(true);
-      const url = new URL(window.location.origin);
-      url.pathname = '/functions/v1/admin-config';
-      url.searchParams.set('action', 'get-available-llms');
-
-      const response = await fetch(url.toString(), {
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/admin-config?action=get-available-llms', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
-          'apikey': `${supabase.supabaseKey}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
+          'apikey': `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
           'Content-Type': 'application/json',
         },
       });
@@ -110,10 +106,10 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
   const loadSystemPrompt = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=get-system-prompt`, {
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/admin-config?action=get-system-prompt', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
           'Content-Type': 'application/json'
         }
       });
@@ -136,10 +132,10 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
   const saveSystemPrompt = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=update-system-prompt`, {
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/admin-config?action=update-system-prompt', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ prompt: systemPrompt })
@@ -163,10 +159,10 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
   const loadModels = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=get-models`, {
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/admin-config?action=get-models', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
           'Content-Type': 'application/json'
         }
       });
@@ -189,10 +185,10 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
   const loadModelData = async (modelName: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=get-model-data`, {
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/admin-config?action=get-model-data', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ modelName })
@@ -219,10 +215,10 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
     
     try {
       setLoading(true);
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=update-model-data`, {
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/admin-config?action=update-model-data', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ modelName: selectedModel, modelData })
@@ -247,10 +243,10 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
   const saveLLMConfiguration = async () => {
      try {
        setLoading(true);
-       const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=update-llm-config`, {
+       const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/admin-config?action=update-llm-config', {
          method: 'POST',
          headers: {
-           'Authorization': `Bearer ${supabase.supabaseKey}`,
+           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
            'Content-Type': 'application/json'
          },
          body: JSON.stringify({ 
@@ -312,10 +308,10 @@ const AdminConfigScreen: React.FC<AdminConfigScreenProps> = ({ onBack }) => {
 
   const loadSavedLLMConfig = async () => {
     try {
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/admin-config?action=get-llm-config`, {
+      const response = await fetch('https://qmclolibbzaeewssqycy.supabase.co/functions/v1/admin-config?action=get-llm-config', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4`,
           'Content-Type': 'application/json'
         }
       });

@@ -52,6 +52,8 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
     
     // Generate memory-enhanced prompt
     let memoryPrompt = ''
+    console.log('Memory context received:', JSON.stringify(memoryContext, null, 2))
+    
     if (memoryContext && memoryContext.anchors && memoryContext.triggers) {
       if (memoryContext.anchors.length > 0) {
         memoryPrompt += `\n\nIMPORTANT USER ANCHORS (permanent facts about this user):\n`
@@ -73,6 +75,39 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
         memoryPrompt += `\nUse this information to make the conversation more personal, consistent, and emotionally rich. Reference these details naturally when appropriate. Never mention the memory system itself.`
       }
     }
+
+    // Add spatial and session memory context
+    if (memoryContext && (memoryContext.sessionState || memoryContext.spatialMemory)) {
+      memoryPrompt += `\n\nCURRENT SESSION STATE & SPATIAL POSITION:\n`
+      
+      if (memoryContext.sessionState) {
+        const state = memoryContext.sessionState
+        memoryPrompt += `- Activity: ${state.currentActivity}\n`
+        memoryPrompt += `- Clothing: ${state.clothing.top}, ${state.clothing.bottom}\n`
+        memoryPrompt += `- Hair: ${state.hairStyle}\n`
+        memoryPrompt += `- Mood: ${state.mood}\n`
+        memoryPrompt += `- Energy: ${state.energy}\n`
+      }
+      
+      if (memoryContext.spatialMemory) {
+        const spatial = memoryContext.spatialMemory
+        memoryPrompt += `- Body Position: ${spatial.bodyPosition.wholeBody}\n`
+        memoryPrompt += `- Left Foot: ${spatial.bodyPosition.leftFoot}\n`
+        memoryPrompt += `- Right Foot: ${spatial.bodyPosition.rightFoot}\n`
+        memoryPrompt += `- Left Hand: ${spatial.bodyPosition.leftHand}\n`
+        memoryPrompt += `- Right Hand: ${spatial.bodyPosition.rightHand}\n`
+        memoryPrompt += `- Head: ${spatial.bodyPosition.head}\n`
+        memoryPrompt += `- Torso: ${spatial.bodyPosition.torso}\n`
+        memoryPrompt += `- Distance: ${spatial.proximity.distanceToUser}\n`
+        if (spatial.proximity.touching && spatial.proximity.touching.length > 0) {
+          memoryPrompt += `- Touching: ${spatial.proximity.touching.join(', ')}\n`
+        }
+      }
+      
+      memoryPrompt += `\nMaintain consistency with your current position, clothing, and activities. Reference your spatial position naturally in responses. When you move or change position, describe it clearly.`
+    }
+    
+    console.log('Generated memory prompt:', memoryPrompt)
 
     // Read LLM config and system prompt from Supabase Storage (config bucket)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')

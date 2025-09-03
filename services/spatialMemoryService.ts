@@ -37,8 +37,17 @@ export class SpatialMemoryService {
       const { error } = await supabase
         .from('session_states')
         .insert({
-          ...defaultState,
-          lastUpdated: defaultState.lastUpdated.toISOString()
+          id: defaultState.id,
+          user_id: userId,
+          model_name: modelName,
+          session_id: sessionId,
+          current_activity: defaultState.currentActivity,
+          clothing: defaultState.clothing,
+          hair_style: defaultState.hairStyle,
+          makeup: defaultState.makeup,
+          mood: defaultState.mood,
+          energy: defaultState.energy,
+          last_updated: defaultState.lastUpdated.toISOString()
         });
 
       if (error) {
@@ -79,8 +88,13 @@ export class SpatialMemoryService {
       const { error } = await supabase
         .from('spatial_memories')
         .insert({
-          ...defaultSpatial,
-          lastUpdated: defaultSpatial.lastUpdated.toISOString()
+          id: defaultSpatial.id,
+          user_id: userId,
+          model_name: modelName,
+          session_id: sessionId,
+          body_position: defaultSpatial.bodyPosition,
+          proximity: defaultSpatial.proximity,
+          last_updated: defaultSpatial.lastUpdated.toISOString()
         });
 
       if (error) {
@@ -163,12 +177,17 @@ export class SpatialMemoryService {
   // Update session state
   async updateSessionState(userId: string, modelName: string, sessionId: string, updates: Partial<SessionState>): Promise<void> {
     try {
+      const payload: any = { last_updated: new Date().toISOString() };
+      if (updates.currentActivity !== undefined) payload.current_activity = updates.currentActivity;
+      if (updates.clothing !== undefined) payload.clothing = updates.clothing;
+      if (updates.hairStyle !== undefined) payload.hair_style = updates.hairStyle;
+      if (updates.makeup !== undefined) payload.makeup = updates.makeup;
+      if (updates.mood !== undefined) payload.mood = updates.mood;
+      if (updates.energy !== undefined) payload.energy = updates.energy;
+
       const { error } = await supabase
         .from('session_states')
-        .update({
-          ...updates,
-          lastUpdated: new Date().toISOString()
-        })
+        .update(payload)
         .eq('user_id', userId)
         .eq('model_name', modelName)
         .eq('session_id', sessionId);
@@ -184,12 +203,13 @@ export class SpatialMemoryService {
   // Update spatial memory
   async updateSpatialMemory(userId: string, modelName: string, sessionId: string, updates: Partial<SpatialMemory>): Promise<void> {
     try {
+      const spPayload: any = { last_updated: new Date().toISOString() };
+      if (updates.bodyPosition !== undefined) spPayload.body_position = updates.bodyPosition;
+      if (updates.proximity !== undefined) spPayload.proximity = updates.proximity;
+
       const { error } = await supabase
         .from('spatial_memories')
-        .update({
-          ...updates,
-          lastUpdated: new Date().toISOString()
-        })
+        .update(spPayload)
         .eq('user_id', userId)
         .eq('model_name', modelName)
         .eq('session_id', sessionId);

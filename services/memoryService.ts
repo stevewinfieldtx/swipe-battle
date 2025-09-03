@@ -116,9 +116,16 @@ export class MemoryService {
 
     try {
       const insertData = nuggets.map(nugget => ({
-        ...nugget,
-        createdAt: nugget.createdAt.toISOString(),
-        lastAccessed: nugget.lastAccessed.toISOString()
+        id: nugget.id,
+        user_id: nugget.userId,
+        model_name: nugget.modelName,
+        content: nugget.content,
+        type: nugget.type,
+        category: nugget.category,
+        clarity: nugget.clarity,
+        created_at: nugget.createdAt.toISOString(),
+        last_accessed: nugget.lastAccessed.toISOString(),
+        tags: nugget.tags,
       }));
       
       console.log('Insert data prepared:', insertData);

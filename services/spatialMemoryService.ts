@@ -112,6 +112,10 @@ export class SpatialMemoryService {
     sessionUpdates?: Partial<SessionState>;
     spatialUpdates?: Partial<SpatialMemory>;
   } {
+    console.log('=== EXTRACTING SPATIAL UPDATES ===');
+    console.log('Message:', message);
+    console.log('User ID:', userId, 'Model Name:', modelName, 'Session ID:', sessionId);
+    
     const lowerMessage = message.toLowerCase();
     const updates: any = {};
 
@@ -171,6 +175,9 @@ export class SpatialMemoryService {
       }
     });
 
+    console.log('=== SPATIAL EXTRACTION COMPLETE ===');
+    console.log('Extracted updates:', updates);
+    
     return updates;
   }
 

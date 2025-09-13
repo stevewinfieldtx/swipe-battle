@@ -16,7 +16,8 @@ export class MemoryService {
     const nuggets: MemoryNugget[] = [];
     const lowerMessage = message.toLowerCase();
     
-    console.log('Extracting memory nuggets from:', message);
+    console.log('=== EXTRACTING MEMORY NUGGETS ===');
+    console.log('Message:', message);
     console.log('User ID:', userId, 'Model Name:', modelName);
 
     // Anchor patterns (permanent identity markers)
@@ -109,7 +110,25 @@ export class MemoryService {
       }
     });
 
-    console.log('Extracted memory nuggets:', nuggets);
+    console.log('=== EXTRACTION COMPLETE ===');
+    console.log('Total nuggets extracted:', nuggets.length);
+    console.log('Extracted nuggets:', nuggets);
+    
+    // Test specific patterns manually
+    console.log('=== MANUAL PATTERN TESTING ===');
+    const testMessage = "My name is Steve and I have 2 kids";
+    console.log('Testing message:', testMessage);
+    
+    // Test name pattern
+    const namePattern = /(?:i'm|i am|my name is|call me|i go by)\s+([a-zA-Z\s]+)/i;
+    const nameMatch = testMessage.match(namePattern);
+    console.log('Name pattern test:', nameMatch);
+    
+    // Test kids pattern
+    const kidsPattern = /(?:i have|i've got|i got)\s+(\d+)\s+(?:kids?|children)/i;
+    const kidsMatch = testMessage.match(kidsPattern);
+    console.log('Kids pattern test:', kidsMatch);
+    
     return nuggets;
   }
 

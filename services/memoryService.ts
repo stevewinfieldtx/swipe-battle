@@ -121,7 +121,7 @@ export class MemoryService {
         model_name: nugget.modelName,
         content: nugget.content,
         type: nugget.type,
-        category: nugget.category,
+        category: nugget.category || 'general', // Provide default category
         clarity: nugget.clarity,
         created_at: nugget.createdAt.toISOString(),
         last_accessed: nugget.lastAccessed.toISOString(),

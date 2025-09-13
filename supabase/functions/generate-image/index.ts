@@ -123,24 +123,28 @@ serve(async (req) => {
 })
 
 async function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: string, chatContext?: string): Promise<string> {
-  // Try to load model's physical description from their JSON file
-  let physicalDescription = '';
+  // Try to load model's appearance from their JSON file
+  let appearanceDescription = '';
+  let modelNameFormatted = modelName.toLowerCase().replace(/\s+/g, '-');
+  
   try {
     // Fetch model data from the public folder (this will work when deployed)
-    const modelUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/model-configs/${modelName.toLowerCase()}.json`;
+    const modelUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/model-configs/${modelNameFormatted}.json`;
     const response = await fetch(modelUrl);
     
     if (response.ok) {
       const modelData = await response.json();
-      physicalDescription = modelData.physical_description || '';
+      // Use the rich appearance field from your JSON structure
+      appearanceDescription = modelData.appearance || modelData.physical_description || modelData.description || '';
+      console.log(`Loaded appearance for ${modelName}:`, appearanceDescription.substring(0, 100) + '...');
     }
   } catch (error) {
     console.log(`Could not load model config for ${modelName}, using fallback`);
   }
   
-  // Start with physical description or fallback to name
-  let enhanced = physicalDescription 
-    ? `${physicalDescription}, ${userPrompt}, ` 
+  // Start with appearance description or fallback to name
+  let enhanced = appearanceDescription 
+    ? `${appearanceDescription}, ${userPrompt}, ` 
     : `Stunning portrait of a beautiful woman named ${modelName}, ${userPrompt}, `;
   
   // Add chat context if provided (clothing and activity from conversation)

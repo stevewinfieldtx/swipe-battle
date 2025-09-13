@@ -159,20 +159,34 @@ async function getModelData(req: Request) {
       throw new Error('Model name is required')
     }
     const supabase = getServiceClient()
-    await ensureBucket(supabase, CONFIG_BUCKET)
-    const path = `models/${modelName.toLowerCase()}.json`
-    const { data } = await supabase.storage.from(CONFIG_BUCKET).download(path)
+    await ensureBucket(supabase, 'model-configs')
+    
+    // Format model name to match your JSON file naming convention
+    const modelNameFormatted = modelName.toLowerCase().replace(/\s+/g, '-')
+    const path = `${modelNameFormatted}.json`
+    
+    console.log(`Looking for model: ${modelName} -> formatted: ${modelNameFormatted} -> path: ${path}`)
+    
+    const { data } = await supabase.storage.from('model-configs').download(path)
     let json
     if (data) {
       json = JSON.parse(await data.text())
+      console.log(`Loaded model data for ${modelName} from model-configs bucket`)
     } else {
-      const lower = modelName.toLowerCase()
-      if (lower === 'mai') {
-        json = DEFAULT_MAI
-      } else if (lower === 'claudia') {
-        json = DEFAULT_CLAUDIA
+      // Fallback to old config bucket for backward compatibility
+      const { data: fallbackData } = await supabase.storage.from(CONFIG_BUCKET).download(`models/${modelName.toLowerCase()}.json`)
+      if (fallbackData) {
+        json = JSON.parse(await fallbackData.text())
+        console.log(`Loaded model data for ${modelName} from config bucket (fallback)`)
       } else {
-        throw new Error('Model not found')
+        const lower = modelName.toLowerCase()
+        if (lower === 'mai') {
+          json = DEFAULT_MAI
+        } else if (lower === 'claudia') {
+          json = DEFAULT_CLAUDIA
+        } else {
+          throw new Error(`Model ${modelName} not found in model-configs or config bucket`)
+        }
       }
     }
     return new Response(

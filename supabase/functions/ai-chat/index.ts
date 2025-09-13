@@ -81,6 +81,23 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
       }
     }
 
+    // Enhanced persona processing for rich JSON structure
+    let enhancedPersonaPrompt = ''
+    if (personaJson) {
+      // If it's a rich JSON structure, extract key personality elements
+      if (personaJson.personality_traits && personaJson.chat_behavior) {
+        enhancedPersonaPrompt += `\n\nENHANCED PERSONALITY CONTEXT:\n`
+        enhancedPersonaPrompt += `- Core Traits: ${personaJson.personality_traits.core_traits?.join(', ') || 'N/A'}\n`
+        enhancedPersonaPrompt += `- Communication Style: ${personaJson.personality_traits.communication_style || 'N/A'}\n`
+        enhancedPersonaPrompt += `- Flirting Style: ${personaJson.chat_behavior.flirting_style || 'N/A'}\n`
+        enhancedPersonaPrompt += `- Voice Profile: ${personaJson.voice_profile?.tone || 'N/A'}\n`
+        if (personaJson.chat_behavior.typical_responses) {
+          enhancedPersonaPrompt += `- Response Patterns: Use these as inspiration for natural responses\n`
+        }
+        enhancedPersonaPrompt += `\nStay true to these personality elements while maintaining full freedom in conversation.`
+      }
+    }
+
     // Add spatial and session memory context
     if (memoryContext && (memoryContext.sessionState || memoryContext.spatialMemory)) {
       memoryPrompt += `\n\nCURRENT SESSION STATE & SPATIAL POSITION:\n`
@@ -155,7 +172,7 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
         messages: [
           {
             role: "system",
-            content: `${adminSystemPrompt ? adminSystemPrompt + '\n\n' : ''}${fanvueSystemPrompt}${memoryPrompt}\n\nPERSONA_JSON (strictly follow): ${personaJson ? JSON.stringify(personaJson) : '{"name":"'+modelName+'"}'}\nMODEL_NAME: ${modelName}\nACCESS_LEVEL: ${level}\nInstructions: Stay fully in character as defined by PERSONA_JSON and ACCESS_LEVEL. Keep replies under ${maxTokens} tokens.`
+            content: `${adminSystemPrompt ? adminSystemPrompt + '\n\n' : ''}${fanvueSystemPrompt}${memoryPrompt}${enhancedPersonaPrompt}\n\nPERSONA_JSON (strictly follow): ${personaJson ? JSON.stringify(personaJson) : '{"name":"'+modelName+'"}'}\nMODEL_NAME: ${modelName}\nACCESS_LEVEL: ${level}\nInstructions: Stay fully in character as defined by PERSONA_JSON and ACCESS_LEVEL. Keep replies under ${maxTokens} tokens.`
           },
           ...(Array.isArray(history) ? history.slice(-10) : []),
           { role: "user", content: message }

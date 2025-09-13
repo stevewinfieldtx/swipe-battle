@@ -67,18 +67,22 @@ export class MemoryService {
     anchorPatterns.forEach(({ pattern, category, type }) => {
       const match = message.match(pattern);
       if (match) {
-        nuggets.push({
-          id: this.generateId(),
-          userId,
-          modelName,
-          content: match[0],
-          type,
-          category,
-          clarity: 100, // Anchors don't decay
-          createdAt: new Date(),
-          lastAccessed: new Date(),
-          tags: this.extractTags(match[0])
-        });
+        const content = match[1] ? match[1].trim() : match[0].trim();
+        if (content && content.length > 2) {
+          console.log(`Memory Pattern Matched: "${pattern}" -> "${content}" (${category})`);
+          nuggets.push({
+            id: this.generateId(),
+            userId,
+            modelName,
+            content,
+            type,
+            category,
+            clarity: 100, // Anchors don't decay
+            createdAt: new Date(),
+            lastAccessed: new Date(),
+            tags: this.extractTags(content)
+          });
+        }
       }
     });
 
@@ -86,18 +90,22 @@ export class MemoryService {
     triggerPatterns.forEach(({ pattern, category, type }) => {
       const match = message.match(pattern);
       if (match) {
-        nuggets.push({
-          id: this.generateId(),
-          userId,
-          modelName,
-          content: match[0],
-          type,
-          category,
-          clarity: 100, // Start at full clarity
-          createdAt: new Date(),
-          lastAccessed: new Date(),
-          tags: this.extractTags(match[0])
-        });
+        const content = match[1] ? match[1].trim() : match[0].trim();
+        if (content && content.length > 2) {
+          console.log(`Memory Pattern Matched: "${pattern}" -> "${content}" (${category})`);
+          nuggets.push({
+            id: this.generateId(),
+            userId,
+            modelName,
+            content,
+            type,
+            category,
+            clarity: 100, // Start at full clarity
+            createdAt: new Date(),
+            lastAccessed: new Date(),
+            tags: this.extractTags(content)
+          });
+        }
       }
     });
 

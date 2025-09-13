@@ -68,8 +68,12 @@ export class MemoryService {
     anchorPatterns.forEach(({ pattern, category, type }) => {
       const match = message.match(pattern);
       if (match) {
-        const content = match[1] ? match[1].trim() : match[0].trim();
-        if (content && content.length > 2) {
+        let content = match[1] ? match[1].trim() : match[0].trim();
+        // Normalize kids count like "2" into a readable fact
+        if (/^\d+$/.test(content) && /\b(kids?|children)\b/i.test(message)) {
+          content = `has ${content} kids`;
+        }
+        if (content && content.length > 0) {
           console.log(`Memory Pattern Matched: "${pattern}" -> "${content}" (${category})`);
           nuggets.push({
             id: this.generateId(),
@@ -91,8 +95,8 @@ export class MemoryService {
     triggerPatterns.forEach(({ pattern, category, type }) => {
       const match = message.match(pattern);
       if (match) {
-        const content = match[1] ? match[1].trim() : match[0].trim();
-        if (content && content.length > 2) {
+        let content = match[1] ? match[1].trim() : match[0].trim();
+        if (content && content.length > 0) {
           console.log(`Memory Pattern Matched: "${pattern}" -> "${content}" (${category})`);
           nuggets.push({
             id: this.generateId(),
@@ -142,24 +146,38 @@ export class MemoryService {
     console.log('Storing memory nuggets:', nuggets);
 
     try {
-      const insertData = nuggets.map(nugget => ({
-        id: nugget.id,
-        user_id: nugget.userId,
-        model_name: nugget.modelName,
-        content: nugget.content,
-        type: nugget.type,
-        category: nugget.category || 'general', // Provide default category
-        clarity: nugget.clarity,
-        created_at: nugget.createdAt.toISOString(),
-        last_accessed: nugget.lastAccessed.toISOString(),
-        tags: nugget.tags,
-      }));
+      const insertData = nuggets.map(nugget => {
+        const normalized = nugget.content.trim().replace(/\s+/g, ' ');
+        const contentHash = this.hashContent(`${nugget.userId}|${nugget.modelName || ''}|${nugget.type}|${nugget.category}|${normalized}`);
+        const attributes: any = {};
+        // Simple attributes inference (expand later)
+        if (/\bhas\s+\d+\s+kids\b/i.test(normalized)) {
+          const m = normalized.match(/has\s+(\d+)\s+kids/i);
+          if (m) attributes.kind = 'kids_count', attributes.value = Number(m[1]);
+        }
+
+        return ({
+          id: nugget.id,
+          user_id: nugget.userId,
+          model_name: nugget.modelName,
+          content: normalized,
+          type: nugget.type,
+          category: nugget.category || 'general',
+          clarity: nugget.clarity,
+          created_at: nugget.createdAt.toISOString(),
+          last_accessed: nugget.lastAccessed.toISOString(),
+          tags: nugget.tags,
+          attributes,
+          source: 'user',
+          content_hash: contentHash
+        });
+      });
       
       console.log('Insert data prepared:', insertData);
       
       const { data, error } = await supabase
         .from('memory_nuggets')
-        .insert(insertData);
+        .upsert(insertData, { onConflict: 'user_id,content_hash' });
 
       if (error) {
         console.error('Error storing memory nuggets:', error);
@@ -323,6 +341,17 @@ export class MemoryService {
 
   private generateId(): string {
     return `mem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private hashContent(input: string): string {
+    // Simple JS hash (FNV‑1a like); replace with crypto.subtle if available
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    // Return as unsigned hex
+    return (hash >>> 0).toString(16);
   }
 
   private extractTags(content: string): string[] {

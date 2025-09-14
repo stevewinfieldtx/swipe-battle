@@ -23,7 +23,8 @@ serve(async (req) => {
       modelName, 
       userEmail, 
       userId,
-      chatContext 
+      chatContext,
+      sessionClothing
     } = await req.json()
 
     console.log('Image generation request:', { prompt, photoType, modelName, userEmail })
@@ -71,7 +72,7 @@ serve(async (req) => {
     }
 
     // Enhanced prompt based on photo type, model, and chat context
-    const enhancedPrompt = await buildEnhancedPrompt(prompt, photoType, modelName, chatContext)
+    const enhancedPrompt = await buildEnhancedPrompt(prompt, photoType, modelName, chatContext, sessionClothing)
 
     // Call Runware API using their SDK pattern
     const imageResponse = await generateImageWithRunware(enhancedPrompt, photoType)
@@ -122,20 +123,28 @@ serve(async (req) => {
   }
 })
 
-async function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: string, chatContext?: string): Promise<string> {
+async function buildEnhancedPrompt(userPrompt: string, photoType: string, modelName: string, chatContext?: string, sessionClothing?: string | null): Promise<string> {
   // Try to load model's appearance from their JSON file
   let appearanceDescription = '';
-  let modelNameFormatted = modelName.toLowerCase().replace(/\s+/g, '-');
+  const lower = modelName.toLowerCase();
+  const hyphen = lower.replace(/\s+/g, '-');
+  const nospace = lower.replace(/\s+/g, '');
   
   try {
     // Fetch model data from the public folder (this will work when deployed)
-    const modelUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/model-configs/${modelNameFormatted}.json`;
-    const response = await fetch(modelUrl);
-    
-    if (response.ok) {
-      const modelData = await response.json();
+    const candidates = [
+      `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/model-configs/${hyphen}.json`,
+      `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/model-configs/${nospace}.json`,
+      `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/model-configs/${lower}.json`
+    ]
+    let json: any = null
+    for (const url of candidates) {
+      const r = await fetch(url)
+      if (r.ok) { json = await r.json(); break }
+    }
+    if (json) {
       // Use the rich appearance field from your JSON structure
-      appearanceDescription = modelData.appearance || modelData.physical_description || modelData.description || '';
+      appearanceDescription = json.appearance || json.physical_description || json.description || '';
       console.log(`Loaded appearance for ${modelName}:`, appearanceDescription.substring(0, 100) + '...');
     }
   } catch (error) {
@@ -147,6 +156,10 @@ async function buildEnhancedPrompt(userPrompt: string, photoType: string, modelN
     ? `${appearanceDescription}, ${userPrompt}, ` 
     : `Stunning portrait of a beautiful woman named ${modelName}, ${userPrompt}, `;
   
+  // Clothing/session state must take priority so images match what she said
+  if (sessionClothing && sessionClothing.trim().length > 0) {
+    enhanced += `Wearing ${sessionClothing.trim()}, `
+  }
   // Add chat context if provided (clothing and activity from conversation)
   if (chatContext && chatContext !== 'No specific context mentioned in recent conversation') {
     enhanced += `${chatContext}, `

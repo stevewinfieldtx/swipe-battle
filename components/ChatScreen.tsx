@@ -46,6 +46,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showMobileImages, setShowMobileImages] = useState(false);
+  const [lastOutfit, setLastOutfit] = useState<string>('');
 
   const downloadAsJpg = async (imageUrl: string, filename: string) => {
     try {
@@ -504,6 +505,16 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
 
         setMessages(prev => [...prev, aiMessage]);
 
+        // Update last described outfit from AI message
+        try {
+          const outfitMatch = aiMessage.content.match(/(?:i'm|i am|i’ve|i have)\s*(?:\s*wearing|\s*in|\s*dressed in|\s*have on)\s+([^\.!\n]+)/i) 
+            || aiMessage.content.match(/\bwearing\s+([^\.!\n]+)/i);
+          if (outfitMatch && outfitMatch[1]) {
+            const outfit = outfitMatch[1].trim();
+            if (outfit && outfit.length > 2) setLastOutfit(outfit);
+          }
+        } catch (_) {}
+
         // Extract and update spatial memory from AI response
         if (currentSessionId) {
           try {
@@ -602,7 +613,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       const chatContext = extractClothingAndActivity(messages);
       
       // Enhanced prompt with detailed chat context
-      const enhancedPrompt = `${pendingImageOffer.prompt}. ${chatContext} Generate a full body picture that accurately reflects the current conversation context, showing the exact clothing, location, and activity described.`;
+      let enhancedPrompt = `${pendingImageOffer.prompt}. ${chatContext} Generate a full body picture that accurately reflects the current conversation context, showing the exact clothing, location, and activity described.`;
+      if (lastOutfit) {
+        enhancedPrompt = `Wearing: ${lastOutfit}. ` + enhancedPrompt;
+      }
 
       // Get user info for image generation
       const { data: { user } } = await supabase.auth.getUser();
@@ -615,7 +629,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
         modelName, 
         userEmail: user?.email, 
         userId: user?.id,
-        chatContext 
+        chatContext,
+        lastOutfit
       });
       
       const { data, error } = await supabase.functions.invoke('generate-image', {
@@ -625,7 +640,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
           modelName: modelName,
           userEmail: user?.email || '',
           userId: user?.id || null,
-          chatContext: chatContext // Pass context separately too
+          chatContext: chatContext, // Pass context separately too
+          sessionClothing: lastOutfit || null
         }
       });
 

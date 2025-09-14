@@ -160,33 +160,58 @@ async function getModelData(req: Request) {
     }
     const supabase = getServiceClient()
     await ensureBucket(supabase, 'model-configs')
-    
-    // Format model name to match your JSON file naming convention
-    const modelNameFormatted = modelName.toLowerCase().replace(/\s+/g, '-')
-    const path = `${modelNameFormatted}.json`
-    
-    console.log(`Looking for model: ${modelName} -> formatted: ${modelNameFormatted} -> path: ${path}`)
-    
-    const { data } = await supabase.storage.from('model-configs').download(path)
+
+    // Try multiple filename variants to be flexible with uploaded JSONs
+    const lower = modelName.toLowerCase()
+    const hyphen = lower.replace(/\s+/g, '-')
+    const nospace = lower.replace(/\s+/g, '')
+    const primaryBucket = 'model-configs'
+    const primaryCandidates = [
+      `${hyphen}.json`,
+      `${nospace}.json`,
+      `${lower}.json`,
+    ]
+
+    console.log(`Looking for model: ${modelName}. Candidates: ${primaryCandidates.join(', ')}`)
+
     let json
-    if (data) {
-      json = JSON.parse(await data.text())
-      console.log(`Loaded model data for ${modelName} from model-configs bucket`)
-    } else {
+    let found = false
+    for (const candidate of primaryCandidates) {
+      const { data: obj } = await supabase.storage.from(primaryBucket).download(candidate)
+      if (obj) {
+        json = JSON.parse(await obj.text())
+        console.log(`Loaded model data for ${modelName} from ${primaryBucket}/${candidate}`)
+        found = true
+        break
+      }
+    }
+
+    if (!found) {
       // Fallback to old config bucket for backward compatibility
-      const { data: fallbackData } = await supabase.storage.from(CONFIG_BUCKET).download(`models/${modelName.toLowerCase()}.json`)
-      if (fallbackData) {
-        json = JSON.parse(await fallbackData.text())
-        console.log(`Loaded model data for ${modelName} from config bucket (fallback)`)
-      } else {
-        const lower = modelName.toLowerCase()
-        if (lower === 'mai') {
-          json = DEFAULT_MAI
-        } else if (lower === 'claudia') {
-          json = DEFAULT_CLAUDIA
-        } else {
-          throw new Error(`Model ${modelName} not found in model-configs or config bucket`)
+      const fallbackCandidates = [
+        `models/${lower}.json`,
+        `models/${hyphen}.json`,
+        `models/${nospace}.json`,
+      ]
+      console.log(`Primary not found; trying fallback candidates: ${fallbackCandidates.join(', ')}`)
+      for (const candidate of fallbackCandidates) {
+        const { data: obj } = await supabase.storage.from(CONFIG_BUCKET).download(candidate)
+        if (obj) {
+          json = JSON.parse(await obj.text())
+          console.log(`Loaded model data for ${modelName} from ${CONFIG_BUCKET}/${candidate}`)
+          found = true
+          break
         }
+      }
+    }
+
+    if (!found) {
+      if (lower === 'mai') {
+        json = DEFAULT_MAI
+      } else if (lower === 'claudia') {
+        json = DEFAULT_CLAUDIA
+      } else {
+        throw new Error(`Model ${modelName} not found in model-configs or config bucket`)
       }
     }
     return new Response(

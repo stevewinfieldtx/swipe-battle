@@ -507,7 +507,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
 
         // Update last described outfit from AI message
         try {
-          const outfitMatch = aiMessage.content.match(/(?:i'm|i am|i’ve|i have)\s*(?:\s*wearing|\s*in|\s*dressed in|\s*have on)\s+([^\.!\n]+)/i) 
+          const outfitMatch =
+            aiMessage.content.match(/(?:i'm|i am|i\s*am)\s*(?:wearing|in|dressed in|have on)\s+([^\.!\n]+)/i)
+            || aiMessage.content.match(/i(?:'|’)ve\s+got\s+on\s+([^\.!\n]+)/i)
+            || aiMessage.content.match(/i\s+got\s+on\s+([^\.!\n]+)/i)
+            || aiMessage.content.match(/i\s*put\s*on\s+([^\.!\n]+)/i)
             || aiMessage.content.match(/\bwearing\s+([^\.!\n]+)/i);
           if (outfitMatch && outfitMatch[1]) {
             const outfit = outfitMatch[1].trim();
@@ -595,18 +599,19 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
       const userRequest = pendingImageOffer.prompt.toLowerCase();
       let type: 'sfw' | 'bikini' | 'lingerie' | 'topless' | 'nude' = 'sfw';
       
-      // Determine type based on user's request with full freedom
+      // Determine type based on user's explicit request first
       if (userRequest.includes('topless') || userRequest.includes('naked') || userRequest.includes('nude')) {
         type = 'topless';
       } else if (userRequest.includes('bikini') || userRequest.includes('swimsuit') || userRequest.includes('beach')) {
         type = 'bikini';
       } else if (userRequest.includes('lingerie') || userRequest.includes('underwear') || userRequest.includes('sexy')) {
         type = 'lingerie';
-      } else if (userRequest.includes('sfw') || userRequest.includes('safe') || userRequest.includes('appropriate')) {
-        type = 'sfw';
       } else {
-        // Default to lingerie for requests that don't specify
-        type = 'lingerie';
+        // If no explicit request, infer from lastOutfit
+        const outfit = (lastOutfit || '').toLowerCase();
+        if (outfit.includes('bikini') || outfit.includes('swimsuit')) type = 'bikini';
+        else if (outfit.includes('lingerie') || outfit.includes('bra') || outfit.includes('panties') || outfit.includes('underwear')) type = 'lingerie';
+        else type = 'sfw';
       }
 
       // Extract detailed context from recent chat messages

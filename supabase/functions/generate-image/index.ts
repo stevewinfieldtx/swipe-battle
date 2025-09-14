@@ -153,13 +153,24 @@ async function buildEnhancedPrompt(userPrompt: string, photoType: string, modelN
   
   // Start with appearance description or fallback to name
   let enhanced = appearanceDescription 
-    ? `${appearanceDescription}, ${userPrompt}, ` 
-    : `Stunning portrait of a beautiful woman named ${modelName}, ${userPrompt}, `;
+    ? `${appearanceDescription}. ` 
+    : `A photoreal portrait of ${modelName}. `;
+
+  // Ensure we lock identity to this model (avoid drift)
+  enhanced += `She is ${modelName}. `
+
+  // Prepend deterministic clothing if provided
+  if (sessionClothing && sessionClothing.trim().length > 0) {
+    enhanced += `Wearing ${sessionClothing.trim()}. `
+  }
+
+  // Add the user's request
+  if (userPrompt && userPrompt.trim().length > 0) {
+    enhanced += `${userPrompt.trim()}. `
+  }
   
   // Clothing/session state must take priority so images match what she said
-  if (sessionClothing && sessionClothing.trim().length > 0) {
-    enhanced += `Wearing ${sessionClothing.trim()}, `
-  }
+  // chatContext may include location/activity
   // Add chat context if provided (clothing and activity from conversation)
   if (chatContext && chatContext !== 'No specific context mentioned in recent conversation') {
     enhanced += `${chatContext}, `

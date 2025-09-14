@@ -475,24 +475,51 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ modelName, onBack, userTokens, 
 
       // Include a short rolling history so the model maintains context
       const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }));
-      const response = await supabase.functions.invoke('ai-chat', {
-        body: {
-          message: userMessage.content,
-          modelName: modelName,
-          // Provide persona JSON and access level so backend can build proper system prompt
-          persona: personality || null,
-          accessLevel: 'MONTHLY', // Always full freedom
-          history,
-          memoryContext: memoryContext
-        }
+
+      // Call via fetch to capture non-2xx response bodies for debugging
+      const FUNCTIONS_URL = 'https://qmclolibbzaeewssqycy.supabase.co/functions/v1/ai-chat';
+      const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtY2xvbGliYnphZWV3c3NxeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjQzOTksImV4cCI6MjA3MDk0MDM5OX0.CDn_kCXJ1h5qnd3OkcX2f8P_98PKbteiwsDO7DL2To4';
+
+      const payload = {
+        message: userMessage.content,
+        modelName: modelName,
+        persona: personality || null,
+        accessLevel: 'MONTHLY',
+        history,
+        memoryContext: memoryContext
+      };
+
+      let fetchResp = await fetch(FUNCTIONS_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ANON_KEY}`
+        },
+        body: JSON.stringify(payload)
       });
 
-      if (response.error) {
-        console.error('Supabase Edge Function Error:', response.error);
-        throw new Error(`Edge Function Error: ${response.error.message || 'Unknown error'}`);
+      // If it fails, retry without memory to isolate cause
+      if (!fetchResp.ok && payload.memoryContext) {
+        const errText = await fetchResp.text().catch(() => '');
+        console.error('ai-chat non-2xx (with memory):', fetchResp.status, errText);
+        const minimalPayload = { ...payload, memoryContext: null } as any;
+        fetchResp = await fetch(FUNCTIONS_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${ANON_KEY}`
+          },
+          body: JSON.stringify(minimalPayload)
+        });
       }
 
-      const data = response.data;
+      if (!fetchResp.ok) {
+        const errText = await fetchResp.text().catch(() => '');
+        console.error('ai-chat non-2xx:', fetchResp.status, errText);
+        throw new Error(`Edge Function Error: ${fetchResp.status} ${errText || ''}`.trim());
+      }
+
+      const data = await fetchResp.json();
       console.log('AI Chat Response:', data);
       
       if (data && data.success) {

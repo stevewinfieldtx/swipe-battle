@@ -193,16 +193,29 @@ Output only your in‑character reply. No system notes, no JSON, no brackets.`
     }
 
     const result = await openRouterResponse.json()
-    console.log('OpenRouter success')
-    
-    // Extract response
-    let aiResponse
-    if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
-      aiResponse = result.choices[0].message.content.trim()
-    } else {
-      console.error('Unexpected OpenRouter response format:', result)
+    console.log('OpenRouter response received')
+
+    // Handle explicit error objects that sometimes come with 200 status
+    if (result && result.error) {
+      console.error('OpenRouter error object:', result.error)
+      throw new Error(`OpenRouter error: ${result.error.message || JSON.stringify(result.error)}`)
+    }
+
+    // Extract response across possible shapes
+    let aiResponse: string | undefined
+    if (Array.isArray(result?.choices) && result.choices.length > 0) {
+      const choice = result.choices[0]
+      aiResponse = choice?.message?.content
+        || choice?.text
+        || choice?.delta?.content
+        || choice?.content
+    }
+
+    if (!aiResponse || typeof aiResponse !== 'string') {
+      console.error('Unexpected OpenRouter response format:', JSON.stringify(result).slice(0, 2000))
       throw new Error('Invalid response format from OpenRouter')
     }
+    aiResponse = aiResponse.trim()
 
     return new Response(
       JSON.stringify({
